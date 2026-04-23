@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { cn } from '../../utils/cn';
+import { createTrackingEventForAnimal } from '../../services/opsTracking';
 
 const SlaughterProcess = () => {
   const { id } = useParams();
@@ -116,7 +117,16 @@ const SlaughterProcess = () => {
            </div>
            
            <button 
-             onClick={() => setIsActive(false)}
+             onClick={async () => {
+               setIsActive(false);
+               if (!id) return;
+               try {
+                 // id is expected to be an animal uuid in current router; if using code, adjust route.
+                 await createTrackingEventForAnimal(id, 'proses_daging', 'Proses sembelih selesai. Dilanjutkan ke pengulitan & pemotongan.');
+               } catch (e: any) {
+                 alert(e?.message ?? 'Gagal update status');
+               }
+             }}
              className="w-full py-5 bg-emerald-600 text-white rounded-[2.5rem] font-black text-sm shadow-xl shadow-emerald-600/30 active:scale-95 transition-all flex items-center justify-center gap-2"
            >
               <CheckCircle2 className="w-5 h-5" /> KONFIRMASI SELESAI

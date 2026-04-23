@@ -20,6 +20,7 @@ import {
 import { cn } from '../../utils/cn';
 import { MasjidAnimal } from '../../types';
 import { listAnimalParticipants, listAnimals } from '../../services/animals';
+import { assignShohibulToAnimal, createAnimal, listAssignableShohibuls } from '../../services/adminAnimals';
 
 const AnimalManagement = () => {
   const [selectedAnimal, setSelectedAnimal] = React.useState<MasjidAnimal | null>(null);
@@ -38,6 +39,20 @@ const AnimalManagement = () => {
   const [participantsByAnimal, setParticipantsByAnimal] = React.useState<Record<string, any[]>>({});
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [isAddOpen, setIsAddOpen] = React.useState(false);
+  const [newAnimal, setNewAnimal] = React.useState({
+    code: '',
+    name: '',
+    type: 'sapi' as 'sapi' | 'kambing' | 'domba',
+    breed: '',
+    weight_label: '',
+    age_label: '',
+    source: '',
+    max_capacity: 7,
+  });
+  const [assignOpenForAnimalId, setAssignOpenForAnimalId] = React.useState<string | null>(null);
+  const [assignCandidates, setAssignCandidates] = React.useState<any[]>([]);
+  const [assignLoading, setAssignLoading] = React.useState(false);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -98,7 +113,10 @@ const AnimalManagement = () => {
           <button className="bg-white text-slate-600 border border-slate-200 px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-slate-50 transition-all shadow-sm">
             <QrCode className="w-4 h-4" /> Scan QR
           </button>
-          <button className="bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20">
+          <button
+            onClick={() => setIsAddOpen(true)}
+            className="bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20"
+          >
             <Plus className="w-4 h-4" /> Tambah Hewan
           </button>
         </div>
@@ -185,7 +203,23 @@ const AnimalManagement = () => {
                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                           <Users className="w-4 h-4 text-blue-500" /> Daftar Pengqurban ({participants.length}/{animal.maxCapacity})
                        </h4>
-                       {!isFull && <button className="text-[10px] font-black text-emerald-600 uppercase hover:underline">+ Tambah</button>}
+                       {!isFull && (
+                         <button
+                           onClick={async () => {
+                             setAssignOpenForAnimalId(animal.id);
+                             setAssignLoading(true);
+                             try {
+                               const cands = await listAssignableShohibuls();
+                               setAssignCandidates(cands);
+                             } finally {
+                               setAssignLoading(false);
+                             }
+                           }}
+                           className="text-[10px] font-black text-emerald-600 uppercase hover:underline"
+                         >
+                           + Tambah
+                         </button>
+                       )}
                     </div>
 
                     <div className="space-y-3">
@@ -380,6 +414,138 @@ const AnimalManagement = () => {
         </div>
       )}
 
+      {/* Add Animal Modal */}
+      {isAddOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setIsAddOpen(false)}></div>
+          <div className="relative bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden border border-slate-100">
+            <div className="p-8 border-b border-slate-100 bg-slate-900 text-white flex justify-between items-center">
+              <div className="font-black uppercase tracking-widest text-sm">Tambah Hewan</div>
+              <button onClick={() => setIsAddOpen(false)} className="p-2 hover:bg-white/10 rounded-xl transition-all">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-10 space-y-6">
+              <div className="grid sm:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Kode (S-001)</label>
+                  <input value={newAnimal.code} onChange={(e) => setNewAnimal({ ...newAnimal, code: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-sm font-bold text-slate-700 outline-none" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nama</label>
+                  <input value={newAnimal.name} onChange={(e) => setNewAnimal({ ...newAnimal, name: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-sm font-bold text-slate-700 outline-none" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Jenis</label>
+                  <select value={newAnimal.type} onChange={(e) => setNewAnimal({ ...newAnimal, type: e.target.value as any, max_capacity: e.target.value === 'sapi' ? 7 : 1 })} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-sm font-bold text-slate-700 outline-none">
+                    <option value="sapi">Sapi</option>
+                    <option value="kambing">Kambing</option>
+                    <option value="domba">Domba</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Kapasitas</label>
+                  <input type="number" value={newAnimal.max_capacity} onChange={(e) => setNewAnimal({ ...newAnimal, max_capacity: Number(e.target.value) })} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-sm font-bold text-slate-700 outline-none" />
+                </div>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Breed</label>
+                  <input value={newAnimal.breed} onChange={(e) => setNewAnimal({ ...newAnimal, breed: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-sm font-bold text-slate-700 outline-none" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Berat (label)</label>
+                  <input value={newAnimal.weight_label} onChange={(e) => setNewAnimal({ ...newAnimal, weight_label: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-sm font-bold text-slate-700 outline-none" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Umur (label)</label>
+                  <input value={newAnimal.age_label} onChange={(e) => setNewAnimal({ ...newAnimal, age_label: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-sm font-bold text-slate-700 outline-none" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sumber</label>
+                  <input value={newAnimal.source} onChange={(e) => setNewAnimal({ ...newAnimal, source: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-sm font-bold text-slate-700 outline-none" />
+                </div>
+              </div>
+              <button
+                onClick={async () => {
+                  try {
+                    await createAnimal(newAnimal as any);
+                    const rows = await listAnimals();
+                    setAnimals(
+                      rows.map((a) => ({
+                        id: a.id,
+                        name: a.name ?? a.code,
+                        type: a.type,
+                        breed: a.breed ?? '-',
+                        weight: a.weight_label ?? '-',
+                        status: a.status as any,
+                        photo: a.photo_path ? a.photo_path : 'https://images.unsplash.com/photo-1570042225831-d98fa7577f1e?auto=format&fit=crop&q=80&w=400',
+                        shohibulIds: [],
+                        maxCapacity: a.max_capacity,
+                        source: a.source ?? '-',
+                        age: a.age_label ?? '-',
+                        code: a.code,
+                      })),
+                    );
+                    setIsAddOpen(false);
+                    setNewAnimal({ code: '', name: '', type: 'sapi', breed: '', weight_label: '', age_label: '', source: '', max_capacity: 7 });
+                  } catch (e: any) {
+                    alert(e?.message ?? 'Gagal menambah hewan');
+                  }
+                }}
+                className="w-full py-5 bg-emerald-600 text-white rounded-3xl font-black text-xs uppercase tracking-[0.2em] hover:bg-emerald-700 transition-all shadow-2xl shadow-emerald-600/30"
+              >
+                Simpan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Assign Shohibul Modal */}
+      {assignOpenForAnimalId && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setAssignOpenForAnimalId(null)}></div>
+          <div className="relative bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden border border-slate-100">
+            <div className="p-8 border-b border-slate-100 bg-slate-900 text-white flex justify-between items-center">
+              <div className="font-black uppercase tracking-widest text-sm">Assign Shohibul</div>
+              <button onClick={() => setAssignOpenForAnimalId(null)} className="p-2 hover:bg-white/10 rounded-xl transition-all">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-8 space-y-4 max-h-[70vh] overflow-y-auto">
+              {assignLoading && <div className="text-slate-500 font-bold">Memuat kandidat...</div>}
+              {!assignLoading &&
+                assignCandidates.map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={async () => {
+                      try {
+                        await assignShohibulToAnimal({ animalId: assignOpenForAnimalId, shohibulId: s.id });
+                        const rows = await listAnimalParticipants(assignOpenForAnimalId);
+                        setParticipantsByAnimal((prev) => ({ ...prev, [assignOpenForAnimalId]: rows }));
+                        setAssignOpenForAnimalId(null);
+                      } catch (e: any) {
+                        alert(e?.message ?? 'Gagal assign');
+                      }
+                    }}
+                    className="w-full p-4 bg-slate-50 hover:bg-white border border-slate-200 rounded-2xl text-left flex items-center justify-between"
+                  >
+                    <div>
+                      <div className="font-black text-slate-800 text-sm">
+                        {s.name} <span className="text-slate-400 text-xs">({s.code})</span>
+                      </div>
+                      <div className="text-[10px] font-bold text-slate-400 uppercase">
+                        {s.phone} • {s.status}
+                      </div>
+                    </div>
+                    <div className="text-[10px] font-black text-emerald-600 uppercase">Pilih</div>
+                  </button>
+                ))}
+            </div>
+          </div>
+        </div>
+      )}
       {/* Quick Action Cards */}
       <div className="grid md:grid-cols-2 gap-6">
          <div className="bg-slate-900 p-8 rounded-[2.5rem] text-white flex items-center justify-between shadow-xl relative overflow-hidden group cursor-pointer">

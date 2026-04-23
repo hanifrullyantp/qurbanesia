@@ -20,9 +20,26 @@ import {
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useNavigate } from 'react-router-dom';
+import { getAdminKpis } from '../../services/adminKpis';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
+  const [kpis, setKpis] = React.useState<any | null>(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const d = await getAdminKpis();
+        if (!cancelled) setKpis(d);
+      } catch {
+        // keep UI
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="space-y-12 pb-20 font-sans">
@@ -102,24 +119,24 @@ const AdminDashboard = () => {
                   <button className="text-[10px] font-black text-emerald-600 uppercase tracking-widest hover:underline">View Live Map</button>
                </div>
                
-               <div className="grid sm:grid-cols-3 gap-10">
+                  <div className="grid sm:grid-cols-3 gap-10">
                   <div className="space-y-2">
                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Hewan Sembelih</div>
-                     <div className="text-3xl font-black text-slate-900">42 / 80</div>
+                     <div className="text-3xl font-black text-slate-900">{kpis ? `${kpis.sudahSembelih} / ${kpis.totalSapi + kpis.totalKambing}` : '—'}</div>
                      <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
                         <div className="h-full bg-emerald-500" style={{ width: '52%' }}></div>
                      </div>
                   </div>
                   <div className="space-y-2">
                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Kantong Terkemas</div>
-                     <div className="text-3xl font-black text-slate-900">185 / 1,200</div>
+                     <div className="text-3xl font-black text-slate-900">{kpis ? `${kpis.distributedBags} / ${kpis.totalBags}` : '—'}</div>
                      <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
                         <div className="h-full bg-blue-500" style={{ width: '15%' }}></div>
                      </div>
                   </div>
                   <div className="space-y-2">
                      <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mustahik Terlayani</div>
-                     <div className="text-3xl font-black text-slate-900">45 / 840</div>
+                     <div className="text-3xl font-black text-slate-900">{kpis ? `${kpis.verifiedShohibul}` : '—'}</div>
                      <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
                         <div className="h-full bg-orange-500" style={{ width: '5%' }}></div>
                      </div>

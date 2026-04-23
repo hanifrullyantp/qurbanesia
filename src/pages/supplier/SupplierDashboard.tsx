@@ -17,10 +17,14 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
-import { SupplierAnimal, SupplierOrder } from '../../types';
+import { listMySupplierAnimals, listMySupplierOrders } from '../../services/supplier';
 
 const SupplierDashboard = () => {
   const [activeTab, setActiveTab] = React.useState<'overview' | 'stock' | 'orders' | 'finance'>('overview');
+  const [animals, setAnimals] = React.useState<any[]>([]);
+  const [orders, setOrders] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
   const stats = [
     { label: 'Total Stok', value: '85', icon: <Store className="w-5 h-5" />, color: 'bg-emerald-50 text-emerald-600' },
@@ -28,16 +32,26 @@ const SupplierDashboard = () => {
     { label: 'Sisa Stok', value: '23', icon: <Package className="w-5 h-5" />, color: 'bg-orange-50 text-orange-600' },
   ];
 
-  const animals: SupplierAnimal[] = [
-    { id: 'S-001', type: 'sapi', breed: 'Limosin', weight: 520, age: 2.5, grade: 'premium', price: 28500000, status: 'sold', ownerId: 'sup1', photos: [] },
-    { id: 'S-005', type: 'sapi', breed: 'Simental', weight: 500, age: 2.2, grade: 'premium', price: 26500000, status: 'booked', ownerId: 'sup1', photos: [] },
-    { id: 'K-015', type: 'kambing', breed: 'PE', weight: 45, age: 1.5, grade: 'standar', price: 3500000, status: 'available', ownerId: 'sup1', photos: [] },
-  ];
-
-  const orders: SupplierOrder[] = [
-    { id: 'ORD-448', buyerName: 'Masjid Ar-Rahman', animalIds: ['S-001', 'S-002'], totalPrice: 105000000, paidAmount: 50000000, escrowStatus: 'held', deliveryStatus: 'preparing', orderDate: '2026-05-20' },
-    { id: 'ORD-445', buyerName: 'Masjid Al-Ikhlas', animalIds: ['S-005'], totalPrice: 45000000, paidAmount: 45000000, escrowStatus: 'released', deliveryStatus: 'arrived', orderDate: '2026-05-18' },
-  ];
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        const [a, o] = await Promise.all([listMySupplierAnimals(), listMySupplierOrders()]);
+        if (cancelled) return;
+        setAnimals(a);
+        setOrders(o);
+        setError(null);
+      } catch (e: any) {
+        if (!cancelled) setError(e?.message ?? 'Gagal memuat data supplier');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="space-y-8 pb-10 font-sans">
@@ -164,6 +178,8 @@ const SupplierDashboard = () => {
               </div>
            </div>
            <div className="overflow-x-auto">
+              {loading && <div className="p-10 text-center text-slate-500 font-bold">Memuat...</div>}
+              {error && !loading && <div className="p-10 text-center text-red-700 font-bold bg-red-50 border-t border-red-100">{error}</div>}
               <table className="w-full">
                  <thead>
                     <tr className="text-left text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
@@ -176,7 +192,7 @@ const SupplierDashboard = () => {
                     </tr>
                  </thead>
                  <tbody className="divide-y divide-slate-50">
-                    {animals.map(a => (
+                    {animals.map((a: any) => (
                       <tr key={a.id} className="hover:bg-slate-50/50 transition-all cursor-pointer group">
                          <td className="px-8 py-5">
                             <div className="flex items-center gap-4">
@@ -185,16 +201,16 @@ const SupplierDashboard = () => {
                                </div>
                                <div>
                                   <div className="text-xs font-black text-slate-900 uppercase tracking-tight">{a.id}</div>
-                                  <div className="text-[10px] font-bold text-slate-400 uppercase">{a.breed}</div>
+                                  <div className="text-[10px] font-bold text-slate-400 uppercase">{a.breed ?? '-'}</div>
                                </div>
                             </div>
                          </td>
                          <td className="px-4 py-5">
-                            <div className="text-xs font-black text-slate-700">{a.weight} Kg</div>
+                            <div className="text-xs font-black text-slate-700">{a.weight_kg ?? '-'} Kg</div>
                             <div className="text-[8px] font-bold text-slate-400 uppercase">{a.grade}</div>
                          </td>
                          <td className="px-4 py-5">
-                            <div className="text-xs font-black text-slate-900">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(a.price)}</div>
+                            <div className="text-xs font-black text-slate-900">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(a.price_idr)}</div>
                          </td>
                          <td className="px-4 py-5">
                             <span className={cn(
@@ -227,19 +243,21 @@ const SupplierDashboard = () => {
 
       {activeTab === 'orders' && (
         <div className="space-y-6 animate-in slide-in-from-right duration-300">
-           {orders.map(order => (
+           {loading && <div className="p-10 text-center text-slate-500 font-bold bg-white rounded-[2.5rem] border border-slate-200">Memuat...</div>}
+           {error && !loading && <div className="p-10 text-center text-red-700 font-bold bg-red-50 rounded-[2.5rem] border border-red-100">{error}</div>}
+           {!loading && !error && orders.map((order: any) => (
              <div key={order.id} className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-8 flex flex-col md:flex-row gap-8">
                 <div className="flex-1 space-y-6">
                    <div className="flex justify-between items-start">
                       <div className="space-y-1">
-                         <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{order.id} • {order.orderDate}</div>
-                         <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">{order.buyerName}</h3>
+                         <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{order.id}</div>
+                         <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Tenant: {order.tenant_id}</h3>
                       </div>
                       <span className={cn(
                         "px-3 py-1 rounded-full text-[9px] font-black uppercase border",
-                        order.escrowStatus === 'held' ? "bg-orange-50 text-orange-600 border-orange-100" : "bg-emerald-50 text-emerald-600 border-emerald-100"
+                        order.escrow_status === 'held' ? "bg-orange-50 text-orange-600 border-orange-100" : "bg-emerald-50 text-emerald-600 border-emerald-100"
                       )}>
-                        Escrow: {order.escrowStatus}
+                        Escrow: {order.escrow_status}
                       </span>
                    </div>
                    
@@ -249,15 +267,9 @@ const SupplierDashboard = () => {
                       </div>
                       <div className="flex-1">
                          <div className="text-[9px] font-black text-slate-400 uppercase">Delivery Status</div>
-                         <div className="text-sm font-bold text-slate-700 uppercase tracking-tight">{order.deliveryStatus}</div>
+                         <div className="text-sm font-bold text-slate-700 uppercase tracking-tight">{order.status}</div>
                       </div>
                       <button className="text-[9px] font-black text-blue-600 uppercase tracking-widest hover:underline">Update Status</button>
-                   </div>
-
-                   <div className="flex gap-4">
-                      {order.animalIds.map(aid => (
-                        <div key={aid} className="px-4 py-2 bg-slate-100 rounded-xl text-[10px] font-black text-slate-500 border border-slate-200">#{aid}</div>
-                      ))}
                    </div>
                 </div>
 
@@ -265,16 +277,16 @@ const SupplierDashboard = () => {
                    <div className="space-y-4">
                       <div className="flex justify-between text-[10px] font-black uppercase">
                          <span className="text-slate-400">Order Value</span>
-                         <span className="text-slate-900">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(order.totalPrice)}</span>
+                         <span className="text-slate-900">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(order.total_price_idr)}</span>
                       </div>
                       <div className="flex justify-between text-[10px] font-black uppercase">
                          <span className="text-slate-400">Payment Paid</span>
-                         <span className="text-emerald-600">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(order.paidAmount)}</span>
+                         <span className="text-emerald-600">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(order.paid_amount_idr)}</span>
                       </div>
                       <div className="h-[1px] bg-slate-200"></div>
                       <div className="flex justify-between text-[10px] font-black uppercase">
                          <span className="text-slate-400">Remaining</span>
-                         <span className="text-orange-600">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(order.totalPrice - order.paidAmount)}</span>
+                         <span className="text-orange-600">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(order.total_price_idr - order.paid_amount_idr)}</span>
                       </div>
                    </div>
                    <button className="w-full mt-6 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center justify-center gap-2">

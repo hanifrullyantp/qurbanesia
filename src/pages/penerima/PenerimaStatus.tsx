@@ -12,25 +12,39 @@ import {
   Package
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { useSearchParams } from 'react-router-dom';
+import { confirmDistributionReceived, findDistributionByCode } from '../../services/distributions';
 
 const PenerimaStatus = () => {
   const [isReceived, setIsReceived] = React.useState(false);
   const [thankYouMsg, setThankYouMsg] = React.useState('');
   const [isSent, setIsSent] = React.useState(false);
+  const [searchParams] = useSearchParams();
+  const [dist, setDist] = React.useState<any | null>(null);
+  const [loading, setLoading] = React.useState(true);
 
-  const data = {
-    name: 'Ibu Siti Aminah',
-    status: 'dalam_pengiriman',
-    packageSize: '2.5 Kg Daging + Jeroan',
-    packageCode: 'PKT-2025-0847',
-    driver: {
-      name: 'Bpk. Rudi',
-      phone: '0812-3456-7890'
-    },
-    eta: '10:30 WIB',
-    distance: '2.3 Km',
-    etaMinutes: '8 menit'
-  };
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        const code = searchParams.get('code');
+        if (!code) {
+          setDist(null);
+          return;
+        }
+        const d = await findDistributionByCode(code);
+        if (cancelled) return;
+        setDist(d);
+        setIsReceived(d?.status === 'received');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams]);
 
   return (
     <div className="max-w-md mx-auto bg-slate-50 min-h-screen font-sans pb-10">
@@ -40,12 +54,22 @@ const PenerimaStatus = () => {
            <ShieldCheck className="w-4 h-4" />
            <span className="text-[10px] font-black uppercase tracking-widest">Masjid Al-Ikhlas Jakarta</span>
         </div>
-        <h1 className="text-xl font-black mb-1 leading-tight">Assalamu'alaikum, {data.name.split(' ')[1]} 👋</h1>
+        <h1 className="text-xl font-black mb-1 leading-tight">Assalamu'alaikum 👋</h1>
         <p className="text-emerald-100 text-xs font-medium">Ibadah qurban Anda tahun ini sedang kami proses.</p>
       </header>
 
       <div className="p-5 space-y-6">
+        {loading && (
+          <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm text-slate-500 font-bold">Memuat data paket...</div>
+        )}
+        {!loading && !dist && (
+          <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm text-slate-500 font-bold">
+            Masukkan kode paket melalui URL, contoh: <span className="font-black">/penerima?code=PKT-XXXX</span>
+          </div>
+        )}
+
         {/* Status Card */}
+        {dist && (
         <section className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden">
            <div className="flex items-center gap-3 text-orange-500 font-black text-[10px] uppercase tracking-widest mb-6">
               <div className="w-2 h-2 rounded-full bg-orange-500 animate-ping"></div>
@@ -60,7 +84,7 @@ const PenerimaStatus = () => {
                     </div>
                     <div>
                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Paket Qurban</div>
-                       <div className="text-sm font-black text-slate-800">{data.packageSize}</div>
+                       <div className="text-sm font-black text-slate-800">{dist.bags} Kantong</div>
                     </div>
                  </div>
                  <div className="flex items-center gap-3">
@@ -69,22 +93,23 @@ const PenerimaStatus = () => {
                     </div>
                     <div>
                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Pengantar</div>
-                       <div className="text-sm font-black text-slate-800">{data.driver.name}</div>
+                       <div className="text-sm font-black text-slate-800">{dist.driver_name ?? '-'}</div>
                     </div>
                  </div>
               </div>
               <div className="text-right">
                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Estimasi Tiba</div>
-                 <div className="text-2xl font-black text-emerald-600 tabular-nums">{data.eta.split(' ')[0]}</div>
-                 <div className="text-[10px] font-black text-emerald-600 uppercase">{data.eta.split(' ')[1]}</div>
+                 <div className="text-2xl font-black text-emerald-600 tabular-nums">-</div>
+                 <div className="text-[10px] font-black text-emerald-600 uppercase">WIB</div>
               </div>
            </div>
 
            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center justify-between">
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Kode Paket:</span>
-              <span className="text-xs font-black text-slate-600">{data.packageCode}</span>
+              <span className="text-xs font-black text-slate-600">{dist.package_code}</span>
            </div>
         </section>
+        )}
 
         {/* Map Placeholder */}
         <section className="bg-white p-2 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden">
@@ -124,14 +149,17 @@ const PenerimaStatus = () => {
         </section>
 
         {/* Confirmation Button */}
-        {!isReceived ? (
+        {dist && !isReceived ? (
           <button 
-            onClick={() => setIsReceived(true)}
+            onClick={async () => {
+              await confirmDistributionReceived(dist.id);
+              setIsReceived(true);
+            }}
             className="w-full py-5 bg-emerald-600 text-white rounded-[2rem] font-black text-sm shadow-xl shadow-emerald-600/30 active:scale-95 transition-all flex items-center justify-center gap-2"
           >
              <CheckCircle2 className="w-5 h-5" /> KONFIRMASI TERIMA DAGING
           </button>
-        ) : (
+        ) : dist && isReceived ? (
           <div className="bg-emerald-50 p-6 rounded-[2rem] border-2 border-emerald-100 text-center space-y-4">
              <div className="w-12 h-12 bg-emerald-600 text-white rounded-full flex items-center justify-center mx-auto shadow-lg shadow-emerald-600/20">
                 <CheckCircle2 className="w-6 h-6" />
@@ -139,7 +167,7 @@ const PenerimaStatus = () => {
              <h3 className="font-black text-emerald-800">Alhamdulillah, Diterima!</h3>
              <p className="text-xs font-medium text-emerald-700 leading-relaxed italic">"Terima kasih telah mengonfirmasi penerimaan. Semoga berkah bagi kita semua."</p>
           </div>
-        )}
+        ) : null}
 
         {/* Thank you note */}
         <section className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm space-y-4">

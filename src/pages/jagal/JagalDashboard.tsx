@@ -14,17 +14,37 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '../../utils/cn';
+import { listActiveAnimalQueue } from '../../services/opsTracking';
 
 const JagalDashboard = () => {
-  const queue = [
-    { id: 'S-001', label: '#1 Sapi', time: '07:15', status: 'done' },
-    { id: 'S-002', label: '#2 Sapi', time: '07:35', status: 'done' },
-    { id: 'S-003', label: '#3 Sapi', time: '07:55', status: 'done' },
-    { id: 'S-004', label: '#4 Sapi', time: '08:15', status: 'done' },
-    { id: 'S-005', label: '#5 Sapi', time: '08:35', status: 'active' },
-    { id: 'S-006', label: '#6 Sapi', time: '~08:55', status: 'pending' },
-    { id: 'S-007', label: '#7 Sapi', time: '~09:15', status: 'pending' },
-  ];
+  const [queue, setQueue] = React.useState<any[]>([]);
+  const [loadingQueue, setLoadingQueue] = React.useState(true);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoadingQueue(true);
+        const rows = await listActiveAnimalQueue();
+        if (cancelled) return;
+        const sapi = rows.filter((a) => a.type === 'sapi');
+        setQueue(
+          sapi.map((a: any, idx: number) => ({
+            id: a.id,
+            label: `#${idx + 1} Sapi`,
+            time: '-',
+            status: a.status === 'sedang_disembelih' ? 'active' : a.status === 'selesai' ? 'done' : 'pending',
+            code: a.code,
+          })),
+        );
+      } finally {
+        if (!cancelled) setLoadingQueue(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const shohibulList = [
     'Ahmad bin Salim',
@@ -85,6 +105,7 @@ const JagalDashboard = () => {
           
           <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
              <div className="max-h-48 overflow-y-auto scrollbar-hide divide-y divide-slate-50">
+                {loadingQueue && <div className="p-4 text-slate-500 font-bold">Memuat antrian...</div>}
                 {queue.map((item) => (
                   <div key={item.id} className={cn(
                     "flex items-center justify-between p-4 transition-colors",
@@ -100,7 +121,7 @@ const JagalDashboard = () => {
                           {item.status === 'done' ? <CheckCircle2 className="w-4 h-4" /> : <span className="text-[10px] font-black">{item.id.split('-')[1]}</span>}
                        </div>
                        <div>
-                          <div className={cn("text-xs font-black", item.status === 'done' ? "text-slate-400" : "text-slate-800")}>{item.label} {item.id}</div>
+                          <div className={cn("text-xs font-black", item.status === 'done' ? "text-slate-400" : "text-slate-800")}>{item.label} {item.code}</div>
                           <div className="text-[8px] font-bold text-slate-400 uppercase">{item.time} WIB • {item.status === 'active' ? 'NOW' : item.status.toUpperCase()}</div>
                        </div>
                     </div>
