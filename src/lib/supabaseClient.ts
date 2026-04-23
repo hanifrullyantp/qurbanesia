@@ -31,37 +31,10 @@ export const supabaseProjectUrl = normalizeSupabaseUrl(supabaseUrl);
 /** Public anon key (safe to embed in frontend). */
 export const supabasePublicAnonKey = supabaseAnonKey;
 
-function combineSignals(outer: AbortSignal | undefined, inner: AbortSignal): AbortSignal {
-  const anyFn = (AbortSignal as any)?.any as undefined | ((signals: AbortSignal[]) => AbortSignal);
-  if (typeof anyFn === 'function') {
-    return outer ? anyFn([outer, inner]) : inner;
-  }
-
-  const combined = new AbortController();
-  const onAbort = () => combined.abort();
-  inner.addEventListener('abort', onAbort);
-  outer?.addEventListener('abort', onAbort);
-  return combined.signal;
-}
-
-/** Abort hanging fetches so UI can show a clear error instead of spinning forever. */
-function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-  const ms = 25000;
-  const deadline = new AbortController();
-  const t = setTimeout(() => deadline.abort(), ms);
-
-  const merged = combineSignals(init?.signal, deadline.signal);
-
-  return fetch(input, { ...init, signal: merged }).finally(() => clearTimeout(t));
-}
-
 export const supabase = createClient(supabaseProjectUrl, supabasePublicAnonKey, {
-  global: { fetch: fetchWithTimeout },
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    // PKCE can hang or fail on some static/embedded deployments; implicit is simpler for SPA password login.
-    flowType: 'implicit',
     detectSessionInUrl: true,
   },
 });

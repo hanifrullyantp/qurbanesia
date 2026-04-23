@@ -47,23 +47,9 @@ export async function signInWithPasswordDirect(email: string, password: string) 
     throw new Error('Login gagal: respons token tidak lengkap.');
   }
 
-  const setSessionPromise = supabase.auth.setSession({
+  const { error } = await supabase.auth.setSession({
     access_token: json.access_token,
     refresh_token: json.refresh_token,
   });
-
-  const timeout = new Promise<never>((_, rej) => {
-    setTimeout(() => rej(new Error('Gagal menyimpan sesi (timeout).')), 15000);
-  });
-
-  const result = await Promise.race([
-    setSessionPromise.then((r) => ({ ok: true as const, r })),
-    timeout.then(() => ({ ok: false as const })),
-  ]);
-
-  if (!result.ok) {
-    throw new Error('Gagal menyimpan sesi (timeout).');
-  }
-
-  if (result.r.error) throw result.r.error;
+  if (error) throw error;
 }
