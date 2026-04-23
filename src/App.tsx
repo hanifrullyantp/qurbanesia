@@ -28,6 +28,7 @@ import SlaughterProcess from './pages/jagal/SlaughterProcess';
 import DonaturDashboard from './pages/donatur/DonaturDashboard';
 import Marketplace from './pages/marketplace/Marketplace';
 import Login from './pages/auth/Login';
+import Signup from './pages/auth/Signup';
 import { RequireAuth } from './auth/RequireAuth';
 import { RequireRole } from './auth/RequireRole';
 
@@ -37,6 +38,7 @@ function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
         
         {/* Super Admin Routes */}
         <Route
