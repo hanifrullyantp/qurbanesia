@@ -20,18 +20,6 @@ const Signup = () => {
   const [done, setDone] = React.useState(false);
   const [statusText, setStatusText] = React.useState<string | null>(null);
 
-  const withTimeout = React.useCallback(async <T,>(p: Promise<T>, ms: number, label: string) => {
-    let t: any;
-    const timeout = new Promise<never>((_, rej) => {
-      t = setTimeout(() => rej(new Error(`${label} timeout (${ms / 1000}s). Cek koneksi & env Supabase.`)), ms);
-    });
-    try {
-      return await Promise.race([p, timeout]);
-    } finally {
-      clearTimeout(t);
-    }
-  }, []);
-
   React.useEffect(() => {
     if (loading) return;
     if (!profile) return;
@@ -66,24 +54,20 @@ const Signup = () => {
         throw new Error('Password minimal 8 karakter.');
       }
 
-      const { data, error: signUpError } = await withTimeout(
-        supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              full_name: fullName,
-              mosque_name: mosqueName,
-              location_full: locationFull,
-              mosque_position: mosquePosition,
-              phone,
-              address,
-            },
+      const { error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+            mosque_name: mosqueName,
+            location_full: locationFull,
+            mosque_position: mosquePosition,
+            phone,
+            address,
           },
-        }),
-        25000,
-        'Signup',
-      );
+        },
+      });
       if (signUpError) throw signUpError;
 
       setDone(true);
@@ -91,7 +75,8 @@ const Signup = () => {
       navigate('/login?signup=1', { replace: true });
     } catch (err: any) {
       console.error('Signup error:', err);
-      if (err?.name === 'AbortError' || String(err?.message || '').toLowerCase().includes('aborted')) {
+      const errMsg = String(err?.message || '').toLowerCase();
+      if (err?.name === 'AbortError' || errMsg.includes('aborted') || errMsg.includes('signal is aborted')) {
         setError(
           'Permintaan daftar terhenti (timeout). Cek jaringan/adblock, atau pastikan env Supabase benar. Lihat Network tab untuk request ke /auth/v1/signup.',
         );

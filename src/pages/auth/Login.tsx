@@ -15,18 +15,6 @@ const Login = () => {
   const [submitting, setSubmitting] = React.useState(false);
   const [statusText, setStatusText] = React.useState<string | null>(null);
 
-  const withTimeout = React.useCallback(async <T,>(p: Promise<T>, ms: number, label: string) => {
-    let t: any;
-    const timeout = new Promise<never>((_, rej) => {
-      t = setTimeout(() => rej(new Error(`${label} timeout (${ms / 1000}s). Cek koneksi & Supabase URL.`)), ms);
-    });
-    try {
-      return await Promise.race([p, timeout]);
-    } finally {
-      clearTimeout(t);
-    }
-  }, []);
-
   React.useEffect(() => {
     if (loading) return;
     if (!profile) return;
@@ -55,18 +43,15 @@ const Login = () => {
     setSubmitting(true);
     setStatusText('Mencoba login...');
     try {
-      const { error: signInError } = await withTimeout(
-        supabase.auth.signInWithPassword({
-          email,
-          password,
-        }),
-        25000,
-        'Login',
-      );
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
       if (signInError) throw signInError;
     } catch (err: any) {
       console.error('Login error:', err);
-      if (err?.name === 'AbortError' || String(err?.message || '').toLowerCase().includes('aborted')) {
+      const msg = String(err?.message || '').toLowerCase();
+      if (err?.name === 'AbortError' || msg.includes('aborted') || msg.includes('signal is aborted')) {
         setError(
           'Permintaan login terhenti (timeout). Biasanya karena jaringan/adblock memblokir ke Supabase, atau env URL/key salah. Coba nonaktifkan adblock untuk domain ini, atau cek Network tab untuk request ke /auth/v1/token.',
         );
