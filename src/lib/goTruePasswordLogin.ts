@@ -15,6 +15,8 @@ type TokenResponse = {
   token_type?: string;
   error?: string;
   error_description?: string;
+  msg?: string;
+  error_code?: string;
 };
 
 /**
@@ -22,25 +24,22 @@ type TokenResponse = {
  */
 export async function signInWithPasswordDirect(email: string, password: string) {
   const url = `${supabaseProjectUrl}/auth/v1/token?grant_type=password`;
-  const body = new URLSearchParams();
-  body.set('email', email);
-  body.set('password', password);
 
   const res = await fetch(url, {
     method: 'POST',
     headers: {
       apikey: supabasePublicAnonKey,
       Authorization: `Bearer ${supabasePublicAnonKey}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
+      'Content-Type': 'application/json',
     },
-    body: body.toString(),
+    body: JSON.stringify({ email, password }),
     signal: abortAfter(20000),
   });
 
   const json = (await res.json()) as TokenResponse;
 
   if (!res.ok) {
-    const msg = json.error_description || json.error || `HTTP ${res.status}`;
+    const msg = json.msg || json.error_description || json.error || `HTTP ${res.status}`;
     throw new Error(msg);
   }
 
