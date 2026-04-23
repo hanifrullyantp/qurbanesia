@@ -10,6 +10,7 @@ npm install
 - **Env**: copy `.env.example` → `.env` lalu isi:
   - `VITE_SUPABASE_URL`
   - `VITE_SUPABASE_ANON_KEY`
+  - (opsional, hanya untuk script admin lokal) `SUPABASE_SERVICE_ROLE_KEY`
 
 - **Run**:
 
@@ -34,4 +35,16 @@ npm run dev
 - Import repo ke Vercel.
 - Set **Environment Variables** di Vercel sesuai `.env.example`.
 - `vercel.json` sudah disiapkan untuk SPA rewrite (React Router).
+
+### Buat akun `super_admin` (lokal via service role)
+Jangan pernah share `SUPABASE_SERVICE_ROLE_KEY` di chat atau commit git.
+
+1) Isi `.env`:
+   - `VITE_SUPABASE_URL=https://<project>.supabase.co`
+   - `SUPABASE_SERVICE_ROLE_KEY=<service_role>`
+2) Jalankan:
+
+```bash
+npm run create:superadmin -- hanif.rullyant@gmail.com 88888888
+```
 

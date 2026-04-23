@@ -1,15 +1,15 @@
 -- Storage buckets for Qurbanesia (run on Supabase)
 -- Note: storage schema exists by default in Supabase.
 
-select
-  storage.create_bucket('animal-media', public := false)
-where not exists (select 1 from storage.buckets where id = 'animal-media');
+insert into storage.buckets (id, name, public)
+values ('animal-media', 'animal-media', false)
+on conflict (id) do nothing;
 
-select
-  storage.create_bucket('payment-proofs', public := false)
-where not exists (select 1 from storage.buckets where id = 'payment-proofs');
+insert into storage.buckets (id, name, public)
+values ('payment-proofs', 'payment-proofs', false)
+on conflict (id) do nothing;
 
-select
-  storage.create_bucket('certificates', public := false)
-where not exists (select 1 from storage.buckets where id = 'certificates');
+insert into storage.buckets (id, name, public)
+values ('certificates', 'certificates', false)
+on conflict (id) do nothing;
 
