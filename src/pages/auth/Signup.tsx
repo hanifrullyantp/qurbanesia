@@ -1,13 +1,18 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, Mail, Lock, ArrowRight, User } from 'lucide-react';
+import { ShieldCheck, Mail, Lock, ArrowRight, User, MapPin, Phone, Building2, Briefcase } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../auth/AuthProvider';
 
 const Signup = () => {
   const navigate = useNavigate();
   const { profile, loading, refreshProfile } = useAuth();
+  const [mosqueName, setMosqueName] = React.useState('');
+  const [locationFull, setLocationFull] = React.useState('');
   const [fullName, setFullName] = React.useState('');
+  const [mosquePosition, setMosquePosition] = React.useState('');
+  const [phone, setPhone] = React.useState('');
+  const [address, setAddress] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [error, setError] = React.useState<string | null>(null);
@@ -40,6 +45,13 @@ const Signup = () => {
     setSubmitting(true);
     setDone(false);
     try {
+      if (!email.trim() || !password) {
+        throw new Error('Email dan password wajib diisi.');
+      }
+      if (password.length < 8) {
+        throw new Error('Password minimal 8 karakter.');
+      }
+
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -52,13 +64,28 @@ const Signup = () => {
       // If email confirmations are enabled, there may be no session yet.
       const userId = data.user?.id;
       if (userId) {
-        // Default: create profile as shohibul (tenant assigned later by admin)
+        // Create tenant for this masjid (if allowed by RLS)
+        let tenantId: string | null = null;
+        if (mosqueName.trim().length > 0) {
+          const { data: t, error: tErr } = await supabase
+            .from('tenants')
+            .insert({ name: mosqueName.trim(), location: locationFull.trim() || null })
+            .select('id')
+            .maybeSingle();
+          if (!tErr && t?.id) tenantId = t.id as string;
+        }
+
+        // Default: create profile as admin_masjid for the newly created tenant (or shohibul if tenant creation isn't permitted)
+        const role = tenantId ? 'admin_masjid' : 'shohibul';
         const { error: pErr } = await supabase.from('profiles').insert({
           user_id: userId,
-          tenant_id: null,
-          role: 'shohibul',
+          tenant_id: tenantId,
+          role,
           full_name: fullName || null,
-          phone: null,
+          phone: phone || null,
+          mosque_position: mosquePosition || null,
+          address: address || null,
+          location_full: locationFull || null,
         });
         // If profile already exists (e.g. trigger or admin-created), ignore.
         if (pErr && !String(pErr.message || '').toLowerCase().includes('duplicate')) throw pErr;
@@ -66,7 +93,8 @@ const Signup = () => {
 
       await refreshProfile().catch(() => {});
       setDone(true);
-      // If session exists, AuthProvider will redirect; otherwise show confirmation message.
+      // If session exists, AuthProvider will redirect; otherwise send user to login with a success banner.
+      navigate('/login?signup=1', { replace: true });
     } catch (err: any) {
       setError(err?.message ?? 'Signup gagal');
     } finally {
@@ -92,6 +120,34 @@ const Signup = () => {
 
         <form onSubmit={onSubmit} className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-200/50 p-10 space-y-6">
           <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nama Masjid</label>
+            <div className="relative">
+              <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                value={mosqueName}
+                onChange={(e) => setMosqueName(e.target.value)}
+                type="text"
+                placeholder="Masjid ..."
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Lokasi lengkap Masjid</label>
+            <div className="relative">
+              <MapPin className="absolute left-4 top-4 w-4 h-4 text-slate-400" />
+              <textarea
+                value={locationFull}
+                onChange={(e) => setLocationFull(e.target.value)}
+                rows={3}
+                placeholder="Alamat/lokasi masjid (kecamatan, kota, provinsi, patokan)"
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nama lengkap</label>
             <div className="relative">
               <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -100,6 +156,49 @@ const Signup = () => {
                 onChange={(e) => setFullName(e.target.value)}
                 type="text"
                 placeholder="Nama"
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Jabatan di Masjid</label>
+            <div className="relative">
+              <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                value={mosquePosition}
+                onChange={(e) => setMosquePosition(e.target.value)}
+                type="text"
+                placeholder="Contoh: Ketua DKM / Bendahara / Sekretaris"
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No HP</label>
+            <div className="relative">
+              <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                type="tel"
+                autoComplete="tel"
+                placeholder="08xxxxxxxxxx"
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Alamat lengkap</label>
+            <div className="relative">
+              <MapPin className="absolute left-4 top-4 w-4 h-4 text-slate-400" />
+              <textarea
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                rows={3}
+                placeholder="Alamat rumah/kantor (untuk kebutuhan administrasi)"
                 className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
               />
             </div>
@@ -152,7 +251,7 @@ const Signup = () => {
             disabled={submitting}
             className="w-full py-4 bg-emerald-600 disabled:bg-emerald-400 text-white rounded-[1.5rem] font-black text-xs uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-600/20 flex items-center justify-center gap-2"
           >
-            Daftar <ArrowRight className="w-4 h-4" />
+            {submitting ? 'Memproses...' : 'Daftar'} <ArrowRight className="w-4 h-4" />
           </button>
 
           <button

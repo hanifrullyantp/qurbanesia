@@ -20,7 +20,7 @@ const LandingPage = () => {
         </div>
         <div className="flex items-center gap-4">
           <Link to="/login" className="text-slate-600 font-semibold px-4 py-2 hover:bg-slate-100 rounded-lg transition-colors">Masuk</Link>
-          <Link to="/login" className="bg-emerald-600 text-white font-semibold px-6 py-2.5 rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20 active:scale-95">Daftar Sekarang</Link>
+          <Link to="/signup" className="bg-emerald-600 text-white font-semibold px-6 py-2.5 rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20 active:scale-95">Daftar Sekarang</Link>
         </div>
       </nav>
 
@@ -44,7 +44,7 @@ const LandingPage = () => {
               Transformasi digital untuk Masjid & Lembaga. Tracking real-time untuk Shohibul, koordinasi tanpa chaos untuk Panitia.
             </p>
             <div className="flex flex-col sm:flex-row items-center gap-4">
-              <Link to="/login" className="w-full sm:w-auto bg-emerald-600 text-white text-lg font-bold px-8 py-4 rounded-2xl hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-600/25 flex items-center justify-center gap-2 group">
+              <Link to="/signup" className="w-full sm:w-auto bg-emerald-600 text-white text-lg font-bold px-8 py-4 rounded-2xl hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-600/25 flex items-center justify-center gap-2 group">
                 Mulai Kelola Sekarang <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Link>
               <button className="w-full sm:w-auto bg-white text-slate-900 text-lg font-bold px-8 py-4 rounded-2xl border border-slate-200 hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
@@ -165,7 +165,7 @@ const LandingPage = () => {
             Bergabunglah dengan ribuan masjid lainnya dan berikan pengalaman ibadah yang lebih baik untuk para shohibul.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link to="/login" className="bg-white text-emerald-600 text-xl font-bold px-10 py-5 rounded-2xl hover:bg-slate-50 transition-all shadow-2xl active:scale-95">
+            <Link to="/signup" className="bg-white text-emerald-600 text-xl font-bold px-10 py-5 rounded-2xl hover:bg-slate-50 transition-all shadow-2xl active:scale-95">
               Daftar Sekarang
             </Link>
             <button className="bg-emerald-700 text-white text-xl font-bold px-10 py-5 rounded-2xl border border-emerald-500 hover:bg-emerald-800 transition-all">
