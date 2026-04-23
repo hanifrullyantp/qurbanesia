@@ -1,9 +1,9 @@
 import React from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ShieldCheck, Mail, Lock, ArrowRight } from 'lucide-react';
-import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../auth/AuthProvider';
 import { Link } from 'react-router-dom';
+import { signInWithPasswordDirect } from '../../lib/goTruePasswordLogin';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -43,17 +43,19 @@ const Login = () => {
     setSubmitting(true);
     setStatusText('Mencoba login...');
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (signInError) throw signInError;
+      await signInWithPasswordDirect(email, password);
     } catch (err: any) {
       console.error('Login error:', err);
       const msg = String(err?.message || '').toLowerCase();
       if (err?.name === 'AbortError' || msg.includes('aborted') || msg.includes('signal is aborted')) {
         setError(
           'Permintaan login terhenti (timeout). Biasanya karena jaringan/adblock memblokir ke Supabase, atau env URL/key salah. Coba nonaktifkan adblock untuk domain ini, atau cek Network tab untuk request ke /auth/v1/token.',
+        );
+        return;
+      }
+      if (msg.includes('failed to fetch') || msg.includes('networkerror')) {
+        setError(
+          'Tidak bisa menghubungi server Supabase (network). Cek koneksi internet, VPN, atau firewall. Pastikan domain `*.supabase.co` tidak diblokir.',
         );
         return;
       }

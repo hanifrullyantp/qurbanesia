@@ -27,7 +27,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-const resolvedUrl = normalizeSupabaseUrl(supabaseUrl);
+export const supabaseProjectUrl = normalizeSupabaseUrl(supabaseUrl);
+/** Public anon key (safe to embed in frontend). */
+export const supabasePublicAnonKey = supabaseAnonKey;
 
 function combineSignals(outer: AbortSignal | undefined, inner: AbortSignal): AbortSignal {
   const anyFn = (AbortSignal as any)?.any as undefined | ((signals: AbortSignal[]) => AbortSignal);
@@ -53,7 +55,7 @@ function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit): Promise
   return fetch(input, { ...init, signal: merged }).finally(() => clearTimeout(t));
 }
 
-export const supabase = createClient(resolvedUrl, supabaseAnonKey, {
+export const supabase = createClient(supabaseProjectUrl, supabasePublicAnonKey, {
   global: { fetch: fetchWithTimeout },
   auth: {
     persistSession: true,
