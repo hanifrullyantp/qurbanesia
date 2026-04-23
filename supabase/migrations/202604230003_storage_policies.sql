@@ -1,7 +1,10 @@
 -- Storage object RLS policies
 -- These rely on path convention: `${tenant_id}/...`
-
-alter table storage.objects enable row level security;
+--
+-- Note: On Supabase managed projects, `storage.objects` is owned/managed by Supabase.
+-- Enabling/disabling RLS via ALTER TABLE may fail with:
+--   ERROR: must be owner of table objects
+-- In practice, RLS is already enabled for `storage.objects`. We only define policies here.
 
 -- Helper: first path segment equals tenant id
 create or replace function public.object_belongs_to_current_tenant(object_name text)
@@ -15,6 +18,7 @@ as $$
 $$;
 
 -- animal-media bucket
+drop policy if exists "animal_media_rw_tenant" on storage.objects;
 create policy "animal_media_rw_tenant" on storage.objects
 for all
 using (
@@ -27,6 +31,7 @@ with check (
 );
 
 -- payment-proofs bucket
+drop policy if exists "payment_proofs_rw_tenant" on storage.objects;
 create policy "payment_proofs_rw_tenant" on storage.objects
 for all
 using (
@@ -39,6 +44,7 @@ with check (
 );
 
 -- certificates bucket (read for tenant users; write typically via Edge Function service role)
+drop policy if exists "certificates_read_tenant" on storage.objects;
 create policy "certificates_read_tenant" on storage.objects
 for select
 using (

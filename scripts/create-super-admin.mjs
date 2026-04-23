@@ -61,6 +61,18 @@ if (!userId) {
   process.exit(1);
 }
 
+// Ensure account can login with provided password (and email is confirmed)
+{
+  const { error: uErr } = await admin.auth.admin.updateUserById(userId, {
+    password,
+    email_confirm: true,
+  });
+  if (uErr) {
+    console.error('updateUserById failed:', uErr.message);
+    process.exit(1);
+  }
+}
+
 const { error: pErr } = await admin.from('profiles').upsert({
   user_id: userId,
   tenant_id: null,
