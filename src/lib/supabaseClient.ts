@@ -27,10 +27,24 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-export const supabase = createClient(normalizeSupabaseUrl(supabaseUrl), supabaseAnonKey, {
+const resolvedUrl = normalizeSupabaseUrl(supabaseUrl);
+
+/** Abort hanging fetches so UI can show a clear error instead of spinning forever. */
+function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const ms = 20000;
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  return fetch(input, { ...init, signal: ctrl.signal }).finally(() => clearTimeout(t));
+}
+
+export const supabase = createClient(resolvedUrl, supabaseAnonKey, {
+  global: { fetch: fetchWithTimeout },
   auth: {
     persistSession: true,
     autoRefreshToken: true,
+    // PKCE can hang or fail on some static/embedded deployments; implicit is simpler for SPA password login.
+    flowType: 'implicit',
+    detectSessionInUrl: true,
   },
 });
 

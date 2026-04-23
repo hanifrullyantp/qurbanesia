@@ -60,12 +60,18 @@ const Login = () => {
           email,
           password,
         }),
-        15000,
+        25000,
         'Login',
       );
       if (signInError) throw signInError;
     } catch (err: any) {
       console.error('Login error:', err);
+      if (err?.name === 'AbortError' || String(err?.message || '').toLowerCase().includes('aborted')) {
+        setError(
+          'Permintaan login terhenti (timeout). Biasanya karena jaringan/adblock memblokir ke Supabase, atau env URL/key salah. Coba nonaktifkan adblock untuk domain ini, atau cek Network tab untuk request ke /auth/v1/token.',
+        );
+        return;
+      }
       setError(err?.message ?? 'Login gagal');
     } finally {
       setSubmitting(false);

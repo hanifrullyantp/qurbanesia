@@ -81,7 +81,7 @@ const Signup = () => {
             },
           },
         }),
-        15000,
+        25000,
         'Signup',
       );
       if (signUpError) throw signUpError;
@@ -90,8 +90,14 @@ const Signup = () => {
       setStatusText('Berhasil. Mengarahkan ke login...');
       navigate('/login?signup=1', { replace: true });
     } catch (err: any) {
-      const msg = err?.message ?? 'Signup gagal';
       console.error('Signup error:', err);
+      if (err?.name === 'AbortError' || String(err?.message || '').toLowerCase().includes('aborted')) {
+        setError(
+          'Permintaan daftar terhenti (timeout). Cek jaringan/adblock, atau pastikan env Supabase benar. Lihat Network tab untuk request ke /auth/v1/signup.',
+        );
+        return;
+      }
+      const msg = err?.message ?? 'Signup gagal';
       setError(msg);
     } finally {
       setSubmitting(false);
