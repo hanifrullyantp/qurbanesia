@@ -17,6 +17,7 @@ import {
   Package
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { getSignedProofUrl, listSubmittedPayments, rejectPayment, verifyPayment } from '../../services/payments';
 
 const FinancialManagement = () => {
   // 1. Fixed Global Costs (Shared by all animals/shohibul)
@@ -51,11 +52,35 @@ const FinancialManagement = () => {
     setTiers(prev => prev.map(t => t.id === id ? { ...t, [field]: value } : t));
   };
 
-  const records = [
-    { id: 'F-001', type: 'income', category: 'Shohibul Payment', from: 'Ahmad Sulaiman', amount: 'Rp 4.500.000', status: 'completed', date: '15 Mei' },
-    { id: 'F-002', type: 'expense', category: 'Livestock DP', from: 'CV Ternak Berkah', amount: 'Rp 15.000.000', status: 'completed', date: '16 Mei' },
-    { id: 'F-003', type: 'expense', category: 'Operational', from: 'Toko Plastik', amount: 'Rp 850.000', status: 'pending', date: '18 Mei' },
-  ];
+  const [inbox, setInbox] = React.useState<any[]>([]);
+  const [loadingInbox, setLoadingInbox] = React.useState(true);
+  const [inboxError, setInboxError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoadingInbox(true);
+        const rows = await listSubmittedPayments();
+        const enriched = await Promise.all(
+          rows.map(async (r) => ({
+            ...r,
+            proofUrl: r.proof_path ? await getSignedProofUrl(r.proof_path) : null,
+          })),
+        );
+        if (cancelled) return;
+        setInbox(enriched);
+        setInboxError(null);
+      } catch (e: any) {
+        if (!cancelled) setInboxError(e?.message ?? 'Gagal memuat inbox pembayaran');
+      } finally {
+        if (!cancelled) setLoadingInbox(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="space-y-8 pb-20 font-sans">
@@ -211,57 +236,84 @@ const FinancialManagement = () => {
               </div>
            </div>
 
-           {/* Transaction History */}
+           {/* Inbox Verifikasi Pembayaran Shohibul */}
            <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
               <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                 <h2 className="font-black text-slate-900 uppercase tracking-tight">Transaksi Terkini</h2>
-                 <button className="text-[10px] font-black text-emerald-600 uppercase tracking-widest hover:underline">Download Laporan</button>
+                 <h2 className="font-black text-slate-900 uppercase tracking-tight">Inbox Verifikasi Pembayaran</h2>
+                 <button className="text-[10px] font-black text-emerald-600 uppercase tracking-widest hover:underline">Refresh</button>
               </div>
               <div className="overflow-x-auto">
-                 <table className="w-full">
+                {loadingInbox && <div className="p-10 text-center text-slate-500 font-bold">Memuat inbox...</div>}
+                {inboxError && !loadingInbox && (
+                  <div className="p-10 text-center text-red-700 font-bold bg-red-50 border-t border-red-100">{inboxError}</div>
+                )}
+                {!loadingInbox && !inboxError && inbox.length === 0 && (
+                  <div className="p-10 text-center text-slate-500 font-bold">Tidak ada pembayaran yang menunggu verifikasi.</div>
+                )}
+                {!loadingInbox && !inboxError && inbox.length > 0 && (
+                  <table className="w-full">
                     <thead>
-                       <tr className="text-left text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
-                          <th className="px-8 py-4">ID / Tanggal</th>
-                          <th className="px-4 py-4">Kategori</th>
-                          <th className="px-4 py-4">Dari/Kepada</th>
-                          <th className="px-4 py-4">Jumlah</th>
-                          <th className="px-4 py-4">Status</th>
-                          <th className="px-8 py-4 text-right">Aksi</th>
-                       </tr>
+                      <tr className="text-left text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                        <th className="px-8 py-4">Shohibul</th>
+                        <th className="px-4 py-4">Jumlah</th>
+                        <th className="px-4 py-4">Metode</th>
+                        <th className="px-4 py-4">Bukti</th>
+                        <th className="px-8 py-4 text-right">Aksi</th>
+                      </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                       {records.map((r) => (
-                         <tr key={r.id} className="hover:bg-slate-50 transition-colors">
-                            <td className="px-8 py-5">
-                               <div className="text-xs font-black text-slate-800">{r.id}</div>
-                               <div className="text-[10px] font-bold text-slate-400">{r.date} Mei 2026</div>
-                            </td>
-                            <td className="px-4 py-5">
-                               <span className="text-[10px] font-black uppercase text-slate-400">{r.category}</span>
-                            </td>
-                            <td className="px-4 py-5">
-                               <div className="text-xs font-bold text-slate-700">{r.from}</div>
-                            </td>
-                            <td className="px-4 py-5">
-                               <div className={cn("text-sm font-black", r.type === 'income' ? 'text-emerald-600' : 'text-red-600')}>
-                                  {r.type === 'income' ? '+' : '-'} {r.amount}
-                               </div>
-                            </td>
-                            <td className="px-4 py-5">
-                               <span className={cn(
-                                 "px-3 py-1 rounded-full text-[8px] font-black uppercase",
-                                 r.status === 'completed' ? "bg-emerald-50 text-emerald-600" : "bg-orange-50 text-orange-600"
-                               )}>
-                                 {r.status}
-                               </span>
-                            </td>
-                            <td className="px-8 py-5 text-right">
-                               <button className="p-2 text-slate-300 hover:text-slate-900"><MoreVertical className="w-4 h-4" /></button>
-                            </td>
-                         </tr>
-                       ))}
+                      {inbox.map((p) => (
+                        <tr key={p.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-8 py-5">
+                            <div className="text-xs font-black text-slate-800">{p.shohibul_name ?? p.shohibul_id}</div>
+                            <div className="text-[10px] font-bold text-slate-400">{p.shohibul_phone ?? '-'}</div>
+                          </td>
+                          <td className="px-4 py-5">
+                            <div className="text-sm font-black text-slate-900">
+                              {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(p.amount_idr)}
+                            </div>
+                          </td>
+                          <td className="px-4 py-5">
+                            <div className="text-[10px] font-black uppercase text-slate-400">{p.method ?? '-'}</div>
+                          </td>
+                          <td className="px-4 py-5">
+                            {p.proofUrl ? (
+                              <a className="text-[10px] font-black text-blue-600 uppercase underline" href={p.proofUrl} target="_blank" rel="noreferrer">
+                                Lihat
+                              </a>
+                            ) : (
+                              <span className="text-[10px] font-black text-slate-300 uppercase">-</span>
+                            )}
+                          </td>
+                          <td className="px-8 py-5 text-right">
+                            <div className="flex justify-end gap-2">
+                              <button
+                                onClick={async () => {
+                                  await verifyPayment(p.id);
+                                  setInbox((prev) => prev.filter((x) => x.id !== p.id));
+                                }}
+                                className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest"
+                              >
+                                Verify
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  const reason = prompt('Alasan penolakan?', 'Bukti tidak jelas') ?? '';
+                                  if (!reason) return;
+                                  await rejectPayment(p.id, reason);
+                                  setInbox((prev) => prev.filter((x) => x.id !== p.id));
+                                }}
+                                className="px-4 py-2 bg-red-50 text-red-700 border border-red-100 rounded-xl text-[10px] font-black uppercase tracking-widest"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
-                 </table>
+                  </table>
+                )}
               </div>
            </div>
         </div>

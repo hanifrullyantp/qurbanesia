@@ -19,10 +19,12 @@ import {
   Phone
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
-import { Shohibul, ShohibulStatus } from '../../types';
+import { ShohibulStatus } from '../../types';
+import { createShohibul, listShohibuls } from '../../services/shohibuls';
+import { getSignedProofUrl, listMyPayments } from '../../services/payments';
 
 const ShohibulManagement = () => {
-  const [selectedShohibul, setSelectedShohibul] = React.useState<Shohibul | null>(null);
+  const [selectedShohibul, setSelectedShohibul] = React.useState<any | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
 
   // Form State for Adding
@@ -32,85 +34,90 @@ const ShohibulManagement = () => {
     qurbanType: 'sapi_1_7',
     grade: 'premium',
     niat: '',
-    delivery: 'ambil_sendiri'
+    delivery: 'ambil_sendiri',
+    totalAmount: 4500000
   });
 
-  // Simulated Database State
-  const [shohibuls, setShohibuls] = React.useState<Shohibul[]>([
-    { 
-      id: 'SH-001', 
-      name: 'Bpk. Ahmad Sulaiman', 
-      phone: '0812-1111-2222',
-      email: 'ahmad@example.com',
-      address: 'Jl. Merdeka No. 10, Bogor',
-      qurbanType: 'sapi_1_7', 
-      grade: 'premium',
-      niat: 'Ahmad Sulaiman & Keluarga',
-      meatPreference: { delivery: 'ambil_sendiri', wantsOffal: true, wantsSkin: false },
-      status: 'lunas', 
-      totalAmount: 4500000, 
-      paidAmount: 4500000,
-      animalId: 'S-007',
-      registrationDate: '2026-04-10',
-      payments: [
-        { id: 'pay1', amount: 1500000, date: '2026-04-10', method: 'Virtual Account' },
-        { id: 'pay2', amount: 3000000, date: '2026-05-15', method: 'BSI Transfer' },
-      ]
-    },
-    { 
-      id: 'SH-002', 
-      name: 'Ibu Ratna Sari', 
-      phone: '0812-3333-4444',
-      qurbanType: 'kambing', 
-      grade: 'premium',
-      niat: 'Alm. Bpk Soeripto',
-      meatPreference: { delivery: 'antar', wantsOffal: false, wantsSkin: false },
-      status: 'cicilan', 
-      totalAmount: 3200000, 
-      paidAmount: 1500000,
-      animalId: 'K-042',
-      registrationDate: '2026-04-12',
-      payments: [
-        { id: 'pay3', amount: 1500000, date: '2026-04-12', method: 'QRIS' },
-      ]
-    },
-    { 
-      id: 'SH-004', 
-      name: 'Bpk. Heru Prasetio', 
-      phone: '0812-7777-8888',
-      qurbanType: 'sapi_1_7', 
-      grade: 'standar',
-      niat: 'Heru Prasetio',
-      meatPreference: { delivery: 'ambil_sendiri', wantsOffal: true, wantsSkin: true },
-      status: 'dp', 
-      totalAmount: 3500000, 
-      paidAmount: 1000000,
-      registrationDate: '2026-05-01',
-      payments: [
-        { id: 'pay4', amount: 1000000, date: '2026-05-01', method: 'Tunai' },
-      ]
-    },
-  ]);
+  const [shohibuls, setShohibuls] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        const rows = await listShohibuls();
+        if (cancelled) return;
+        setShohibuls(
+          rows.map((s) => ({
+            id: s.code,
+            dbId: s.id,
+            name: s.name,
+            phone: s.phone,
+            email: s.email ?? undefined,
+            address: s.address ?? undefined,
+            qurbanType: s.qurban_type,
+            grade: s.grade,
+            niat: s.niat ?? '',
+            meatPreference: { delivery: s.delivery_pref, wantsOffal: s.wants_offal, wantsSkin: s.wants_skin },
+            status: s.status,
+            totalAmount: s.total_amount_idr,
+            paidAmount: s.paid_amount_idr,
+            registrationDate: '',
+            payments: [],
+          })),
+        );
+        setError(null);
+      } catch (e: any) {
+        if (!cancelled) setError(e?.message ?? 'Gagal memuat data shohibul');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleSaveShohibul = () => {
-    if (!newShohibul.name || !newShohibul.phone) return;
-    const shohibul: Shohibul = {
-      id: `SH-00${shohibuls.length + 1}`,
-      name: newShohibul.name,
-      phone: newShohibul.phone,
-      qurbanType: newShohibul.qurbanType as any,
-      grade: newShohibul.grade as any,
-      niat: newShohibul.niat,
-      meatPreference: { delivery: newShohibul.delivery as any, wantsOffal: true, wantsSkin: false },
-      status: 'terdaftar',
-      totalAmount: newShohibul.qurbanType === 'kambing' ? 3200000 : 4500000,
-      paidAmount: 0,
-      registrationDate: new Date().toISOString().split('T')[0],
-      payments: []
-    };
-    setShohibuls([...shohibuls, shohibul]);
-    setIsAddModalOpen(false);
-    setNewShohibul({ name: '', phone: '', qurbanType: 'sapi_1_7', grade: 'premium', niat: '', delivery: 'ambil_sendiri' });
+    (async () => {
+      try {
+        await createShohibul({
+          name: newShohibul.name,
+          phone: newShohibul.phone,
+          qurban_type: newShohibul.qurbanType as any,
+          grade: newShohibul.grade as any,
+          niat: newShohibul.niat,
+          delivery_pref: newShohibul.delivery as any,
+          total_amount_idr: Number(newShohibul.totalAmount),
+        });
+        const rows = await listShohibuls();
+        setShohibuls(
+          rows.map((s) => ({
+            id: s.code,
+            dbId: s.id,
+            name: s.name,
+            phone: s.phone,
+            email: s.email ?? undefined,
+            address: s.address ?? undefined,
+            qurbanType: s.qurban_type,
+            grade: s.grade,
+            niat: s.niat ?? '',
+            meatPreference: { delivery: s.delivery_pref, wantsOffal: s.wants_offal, wantsSkin: s.wants_skin },
+            status: s.status,
+            totalAmount: s.total_amount_idr,
+            paidAmount: s.paid_amount_idr,
+            registrationDate: '',
+            payments: [],
+          })),
+        );
+        setIsAddModalOpen(false);
+        setNewShohibul({ name: '', phone: '', qurbanType: 'sapi_1_7', grade: 'premium', niat: '', delivery: 'ambil_sendiri', totalAmount: 4500000 });
+      } catch (e: any) {
+        alert(e?.message ?? 'Gagal menambah shohibul');
+      }
+    })();
   };
 
   const stats = [
@@ -183,6 +190,8 @@ const ShohibulManagement = () => {
         </div>
 
         <div className="overflow-x-auto">
+           {loading && <div className="p-10 text-center text-slate-500 font-bold">Memuat data...</div>}
+           {error && !loading && <div className="p-10 text-center text-red-700 font-bold bg-red-50 border-t border-red-100">{error}</div>}
            <table className="w-full">
              <thead>
                <tr className="text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b border-slate-100">
@@ -196,7 +205,29 @@ const ShohibulManagement = () => {
              </thead>
              <tbody className="divide-y divide-slate-50">
                {shohibuls.map((s) => (
-                 <tr key={s.id} onClick={() => setSelectedShohibul(s)} className="group hover:bg-slate-50/50 transition-all cursor-pointer">
+                 <tr
+                   key={s.id}
+                   onClick={async () => {
+                     try {
+                       const pays = await listMyPayments(s.dbId);
+                       const enriched = await Promise.all(
+                         pays.map(async (p) => ({
+                           id: p.id,
+                           amount: p.amount_idr,
+                           date: new Date(p.paid_at).toISOString().slice(0, 10),
+                           method: p.method ?? '-',
+                           proofUrl: p.proof_path ? await getSignedProofUrl(p.proof_path) : undefined,
+                           status: p.status,
+                           rejectReason: p.reject_reason ?? undefined,
+                         })),
+                       );
+                       setSelectedShohibul({ ...s, payments: enriched });
+                     } catch {
+                       setSelectedShohibul(s);
+                     }
+                   }}
+                   className="group hover:bg-slate-50/50 transition-all cursor-pointer"
+                 >
                    <td className="px-8 py-5">
                       <div className="flex items-center gap-4">
                          <div className="w-10 h-10 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center font-black text-xs border border-slate-200 uppercase">
@@ -311,6 +342,15 @@ const ShohibulManagement = () => {
                           <option value="premium">Premium</option>
                        </select>
                     </div>
+                 </div>
+                 <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Tagihan (IDR)</label>
+                    <input
+                      type="number"
+                      value={newShohibul.totalAmount}
+                      onChange={(e) => setNewShohibul({ ...newShohibul, totalAmount: Number(e.target.value) })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
+                    />
                  </div>
                  <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Niat Qurban Atas Nama</label>
@@ -436,16 +476,38 @@ const ShohibulManagement = () => {
                          <div key={i} className="flex items-center justify-between p-5 bg-slate-50 rounded-3xl border border-slate-100">
                             <div className="flex items-center gap-4">
                                <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center shadow-sm">
-                                  <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                                  {p.status === 'verified' ? (
+                                    <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                                  ) : p.status === 'rejected' ? (
+                                    <AlertCircle className="w-5 h-5 text-red-500" />
+                                  ) : (
+                                    <Clock className="w-5 h-5 text-orange-500" />
+                                  )}
                                </div>
                                <div>
                                   <div className="text-sm font-black text-slate-800">{new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(p.amount)}</div>
-                                  <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{p.method} • {p.date} Mei 2026</div>
+                                  <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{p.method} • {p.date}</div>
+                                  <div className="text-[9px] font-black uppercase tracking-widest mt-1">
+                                    {p.status === 'verified' ? (
+                                      <span className="text-emerald-600">verified</span>
+                                    ) : p.status === 'rejected' ? (
+                                      <span className="text-red-600">rejected</span>
+                                    ) : (
+                                      <span className="text-orange-600">submitted</span>
+                                    )}
+                                    {p.status === 'rejected' && p.rejectReason && (
+                                      <span className="text-slate-400 font-bold normal-case ml-2">({p.rejectReason})</span>
+                                    )}
+                                  </div>
                                </div>
                             </div>
-                            <button className="text-[9px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-1.5 hover:underline">
-                               Kirim Receipt <ExternalLink className="w-3" />
-                            </button>
+                            <div className="flex items-center gap-3">
+                              {p.proofUrl && (
+                                <a className="text-[9px] font-black text-blue-600 uppercase tracking-widest hover:underline" href={p.proofUrl} target="_blank" rel="noreferrer">
+                                  Lihat Bukti <ExternalLink className="w-3 inline" />
+                                </a>
+                              )}
+                            </div>
                          </div>
                        ))}
                        <div className="p-6 bg-slate-900 text-white rounded-[2rem] flex justify-between items-center shadow-xl">

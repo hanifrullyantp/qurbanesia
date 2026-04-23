@@ -7,11 +7,44 @@ import {
   Globe, 
   Save,
   Trash2,
-  Plus
+  Plus,
+  CheckCircle2,
+  X
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import React from 'react';
+import { createTenantBankAccount, deactivateTenantBankAccount, listTenantBankAccounts, setDefaultTenantBankAccount } from '../../services/tenantBankAccounts';
 
 const Settings = () => {
+  const [accounts, setAccounts] = React.useState<any[]>([]);
+  const [loadingAccounts, setLoadingAccounts] = React.useState(true);
+  const [accountsError, setAccountsError] = React.useState<string | null>(null);
+  const [isAddBankOpen, setIsAddBankOpen] = React.useState(false);
+  const [newAcc, setNewAcc] = React.useState({ bank_name: '', account_number: '', account_holder: '', is_default: true });
+
+  const refreshAccounts = React.useCallback(async () => {
+    const rows = await listTenantBankAccounts();
+    setAccounts(rows);
+  }, []);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoadingAccounts(true);
+        await refreshAccounts();
+        setAccountsError(null);
+      } catch (e: any) {
+        if (!cancelled) setAccountsError(e?.message ?? 'Gagal memuat rekening');
+      } finally {
+        if (!cancelled) setLoadingAccounts(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshAccounts]);
+
   return (
     <div className="space-y-8 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -99,24 +132,129 @@ const Settings = () => {
               <div className="space-y-4">
                  <div className="p-4 bg-white/5 border border-white/10 rounded-2xl">
                     <div className="flex justify-between items-start mb-4">
-                       <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Virtual Account</span>
-                       <span className="px-2 py-0.5 bg-emerald-500 text-white text-[8px] font-black uppercase rounded">Active</span>
-                    </div>
-                    <p className="text-xs text-slate-400 leading-relaxed">Terintegrasi otomatis dengan Midtrans/Xendit.</p>
-                 </div>
-                 <div className="p-4 bg-white/5 border border-white/10 rounded-2xl">
-                    <div className="flex justify-between items-start mb-4">
                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Transfer Manual</span>
                        <span className="px-2 py-0.5 bg-slate-700 text-white text-[8px] font-black uppercase rounded">Standard</span>
                     </div>
-                    <div className="space-y-2">
-                       <div className="text-xs font-bold">BSI: 1234567890</div>
-                       <div className="text-xs font-bold">BCA: 0987654321</div>
-                    </div>
-                    <button className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mt-4 hover:underline">Edit Rekening</button>
+                    {loadingAccounts && <div className="text-xs font-bold text-slate-400">Memuat rekening...</div>}
+                    {accountsError && !loadingAccounts && <div className="text-xs font-bold text-red-300">{accountsError}</div>}
+                    {!loadingAccounts && !accountsError && accounts.length === 0 && (
+                      <div className="text-xs font-bold text-slate-400">Belum ada rekening. Tambahkan rekening untuk pembayaran shohibul.</div>
+                    )}
+                    {!loadingAccounts && !accountsError && accounts.length > 0 && (
+                      <div className="space-y-3">
+                        {accounts.map((a: any) => (
+                          <div key={a.id} className="flex items-center justify-between gap-4 bg-white/5 border border-white/10 rounded-xl p-3">
+                            <div className="min-w-0">
+                              <div className="text-xs font-black truncate">{a.bank_name}: {a.account_number}</div>
+                              <div className="text-[10px] font-bold text-slate-300 truncate">a/n {a.account_holder}</div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {a.is_default ? (
+                                <span className="px-2 py-0.5 bg-emerald-500 text-white text-[8px] font-black uppercase rounded flex items-center gap-1">
+                                  <CheckCircle2 className="w-3 h-3" /> Default
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={async () => {
+                                    await setDefaultTenantBankAccount(a.id);
+                                    await refreshAccounts();
+                                  }}
+                                  className="text-[9px] font-black text-emerald-300 uppercase tracking-widest hover:underline"
+                                >
+                                  Jadikan Default
+                                </button>
+                              )}
+                              <button
+                                onClick={async () => {
+                                  if (!confirm('Nonaktifkan rekening ini?')) return;
+                                  await deactivateTenantBankAccount(a.id);
+                                  await refreshAccounts();
+                                }}
+                                className="text-[9px] font-black text-red-300 uppercase tracking-widest hover:underline"
+                              >
+                                Nonaktifkan
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <button
+                      onClick={() => setIsAddBankOpen(true)}
+                      className="text-[9px] font-black text-emerald-400 uppercase tracking-widest mt-4 hover:underline"
+                    >
+                      + Tambah Rekening
+                    </button>
                  </div>
               </div>
            </div>
+
+           {isAddBankOpen && (
+             <div className="fixed inset-0 z-[120] flex items-center justify-center p-6">
+               <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setIsAddBankOpen(false)} />
+               <div className="relative bg-white w-full max-w-xl rounded-[3rem] shadow-2xl overflow-hidden border border-slate-100">
+                 <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-900 text-white">
+                   <div className="font-black uppercase tracking-widest text-sm">Tambah Rekening</div>
+                   <button onClick={() => setIsAddBankOpen(false)} className="p-2 hover:bg-white/10 rounded-xl transition-colors">
+                     <X className="w-6 h-6" />
+                   </button>
+                 </div>
+                 <div className="p-10 space-y-6">
+                   <div className="grid sm:grid-cols-2 gap-6">
+                     <div className="space-y-2">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bank</label>
+                       <input
+                         value={newAcc.bank_name}
+                         onChange={(e) => setNewAcc({ ...newAcc, bank_name: e.target.value })}
+                         className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-sm font-bold text-slate-700 outline-none"
+                       />
+                     </div>
+                     <div className="space-y-2">
+                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No Rekening</label>
+                       <input
+                         value={newAcc.account_number}
+                         onChange={(e) => setNewAcc({ ...newAcc, account_number: e.target.value })}
+                         className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-sm font-bold text-slate-700 outline-none"
+                       />
+                     </div>
+                   </div>
+                   <div className="space-y-2">
+                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Atas Nama</label>
+                     <input
+                       value={newAcc.account_holder}
+                       onChange={(e) => setNewAcc({ ...newAcc, account_holder: e.target.value })}
+                       className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3 text-sm font-bold text-slate-700 outline-none"
+                     />
+                   </div>
+                   <label className="flex items-center gap-2 text-xs font-black text-slate-700">
+                     <input
+                       type="checkbox"
+                       checked={newAcc.is_default}
+                       onChange={(e) => setNewAcc({ ...newAcc, is_default: e.target.checked })}
+                     />
+                     Jadikan default
+                   </label>
+                   <button
+                     onClick={async () => {
+                       await createTenantBankAccount(newAcc);
+                       if (newAcc.is_default) {
+                         const rows = await listTenantBankAccounts();
+                         const created = rows.find((r) => r.account_number === newAcc.account_number && r.bank_name === newAcc.bank_name);
+                         if (created) await setDefaultTenantBankAccount(created.id);
+                       }
+                       await refreshAccounts();
+                       setIsAddBankOpen(false);
+                       setNewAcc({ bank_name: '', account_number: '', account_holder: '', is_default: true });
+                     }}
+                     className="w-full py-5 bg-emerald-600 text-white rounded-3xl font-black text-xs uppercase tracking-[0.2em] hover:bg-emerald-700 transition-all shadow-2xl shadow-emerald-600/30"
+                   >
+                     Simpan
+                   </button>
+                 </div>
+               </div>
+             </div>
+           )}
 
            {/* Notification Settings */}
            <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-6">
