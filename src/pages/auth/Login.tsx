@@ -13,6 +13,19 @@ const Login = () => {
   const [password, setPassword] = React.useState('');
   const [error, setError] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
+  const [statusText, setStatusText] = React.useState<string | null>(null);
+
+  const withTimeout = React.useCallback(async <T,>(p: Promise<T>, ms: number, label: string) => {
+    let t: any;
+    const timeout = new Promise<never>((_, rej) => {
+      t = setTimeout(() => rej(new Error(`${label} timeout (${ms / 1000}s). Cek koneksi & Supabase URL.`)), ms);
+    });
+    try {
+      return await Promise.race([p, timeout]);
+    } finally {
+      clearTimeout(t);
+    }
+  }, []);
 
   React.useEffect(() => {
     if (loading) return;
@@ -40,16 +53,23 @@ const Login = () => {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
+    setStatusText('Mencoba login...');
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const { error: signInError } = await withTimeout(
+        supabase.auth.signInWithPassword({
+          email,
+          password,
+        }),
+        15000,
+        'Login',
+      );
       if (signInError) throw signInError;
     } catch (err: any) {
+      console.error('Login error:', err);
       setError(err?.message ?? 'Login gagal');
     } finally {
       setSubmitting(false);
+      setStatusText(null);
     }
   };
 
@@ -121,6 +141,8 @@ const Login = () => {
           >
             {submitting ? 'Memproses...' : 'Masuk'} <ArrowRight className="w-4 h-4" />
           </button>
+
+          {statusText && <div className="text-center text-xs font-bold text-slate-500">{statusText}</div>}
         </form>
 
         <p className="text-center mt-12 text-slate-400 text-sm">

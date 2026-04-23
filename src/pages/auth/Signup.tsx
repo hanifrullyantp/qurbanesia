@@ -6,7 +6,7 @@ import { useAuth } from '../../auth/AuthProvider';
 
 const Signup = () => {
   const navigate = useNavigate();
-  const { profile, loading, refreshProfile } = useAuth();
+  const { profile, loading } = useAuth();
   const [mosqueName, setMosqueName] = React.useState('');
   const [locationFull, setLocationFull] = React.useState('');
   const [fullName, setFullName] = React.useState('');
@@ -18,6 +18,19 @@ const Signup = () => {
   const [error, setError] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
   const [done, setDone] = React.useState(false);
+  const [statusText, setStatusText] = React.useState<string | null>(null);
+
+  const withTimeout = React.useCallback(async <T,>(p: Promise<T>, ms: number, label: string) => {
+    let t: any;
+    const timeout = new Promise<never>((_, rej) => {
+      t = setTimeout(() => rej(new Error(`${label} timeout (${ms / 1000}s). Cek koneksi & env Supabase.`)), ms);
+    });
+    try {
+      return await Promise.race([p, timeout]);
+    } finally {
+      clearTimeout(t);
+    }
+  }, []);
 
   React.useEffect(() => {
     if (loading) return;
@@ -44,6 +57,7 @@ const Signup = () => {
     setError(null);
     setSubmitting(true);
     setDone(false);
+    setStatusText('Mengirim pendaftaran...');
     try {
       if (!email.trim() || !password) {
         throw new Error('Email dan password wajib diisi.');
@@ -52,30 +66,36 @@ const Signup = () => {
         throw new Error('Password minimal 8 karakter.');
       }
 
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-            mosque_name: mosqueName,
-            location_full: locationFull,
-            mosque_position: mosquePosition,
-            phone,
-            address,
+      const { data, error: signUpError } = await withTimeout(
+        supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: fullName,
+              mosque_name: mosqueName,
+              location_full: locationFull,
+              mosque_position: mosquePosition,
+              phone,
+              address,
+            },
           },
-        },
-      });
+        }),
+        15000,
+        'Signup',
+      );
       if (signUpError) throw signUpError;
 
       setDone(true);
-      // In most setups email confirmation is required, so there is no session yet.
-      // We show success message and send user to login page.
+      setStatusText('Berhasil. Mengarahkan ke login...');
       navigate('/login?signup=1', { replace: true });
     } catch (err: any) {
-      setError(err?.message ?? 'Signup gagal');
+      const msg = err?.message ?? 'Signup gagal';
+      console.error('Signup error:', err);
+      setError(msg);
     } finally {
       setSubmitting(false);
+      setStatusText(null);
     }
   };
 
@@ -214,6 +234,10 @@ const Signup = () => {
           {error && (
             <div className="bg-red-50 border border-red-100 text-red-700 rounded-2xl p-4 text-sm font-bold">
               {error}
+              <div className="mt-2 text-xs font-bold text-red-700/80">
+                Jika ini timeout/blank, pastikan `VITE_SUPABASE_URL` base (tanpa `/rest/v1`) dan browser bisa akses
+                `https://&lt;ref&gt;.supabase.co/auth/v1/health`.
+              </div>
             </div>
           )}
 
@@ -230,6 +254,8 @@ const Signup = () => {
           >
             {submitting ? 'Memproses...' : 'Daftar'} <ArrowRight className="w-4 h-4" />
           </button>
+
+          {statusText && <div className="text-center text-xs font-bold text-slate-500">{statusText}</div>}
 
           <button
             type="button"
