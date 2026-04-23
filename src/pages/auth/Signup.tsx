@@ -56,44 +56,21 @@ const Signup = () => {
         email,
         password,
         options: {
-          data: { full_name: fullName },
+          data: {
+            full_name: fullName,
+            mosque_name: mosqueName,
+            location_full: locationFull,
+            mosque_position: mosquePosition,
+            phone,
+            address,
+          },
         },
       });
       if (signUpError) throw signUpError;
 
-      // If email confirmations are enabled, there may be no session yet.
-      const userId = data.user?.id;
-      if (userId) {
-        // Create tenant for this masjid (if allowed by RLS)
-        let tenantId: string | null = null;
-        if (mosqueName.trim().length > 0) {
-          const { data: t, error: tErr } = await supabase
-            .from('tenants')
-            .insert({ name: mosqueName.trim(), location: locationFull.trim() || null })
-            .select('id')
-            .maybeSingle();
-          if (!tErr && t?.id) tenantId = t.id as string;
-        }
-
-        // Default: create profile as admin_masjid for the newly created tenant (or shohibul if tenant creation isn't permitted)
-        const role = tenantId ? 'admin_masjid' : 'shohibul';
-        const { error: pErr } = await supabase.from('profiles').insert({
-          user_id: userId,
-          tenant_id: tenantId,
-          role,
-          full_name: fullName || null,
-          phone: phone || null,
-          mosque_position: mosquePosition || null,
-          address: address || null,
-          location_full: locationFull || null,
-        });
-        // If profile already exists (e.g. trigger or admin-created), ignore.
-        if (pErr && !String(pErr.message || '').toLowerCase().includes('duplicate')) throw pErr;
-      }
-
-      await refreshProfile().catch(() => {});
       setDone(true);
-      // If session exists, AuthProvider will redirect; otherwise send user to login with a success banner.
+      // In most setups email confirmation is required, so there is no session yet.
+      // We show success message and send user to login page.
       navigate('/login?signup=1', { replace: true });
     } catch (err: any) {
       setError(err?.message ?? 'Signup gagal');

@@ -48,3 +48,12 @@ Jangan pernah share `SUPABASE_SERVICE_ROLE_KEY` di chat atau commit git.
 npm run create:superadmin -- hanif.rullyant@gmail.com 88888888
 ```
 
+### Push migrations ke Supabase (via CLI + DB URL)
+1) Isi `.env`:
+   - `SUPABASE_DB_URL=postgresql://...`
+2) Jalankan:
+
+```bash
+npm run db:push
+```
+

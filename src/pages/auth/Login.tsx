@@ -106,6 +106,11 @@ const Login = () => {
           {error && (
             <div className="bg-red-50 border border-red-100 text-red-700 rounded-2xl p-4 text-sm font-bold">
               {error}
+              {String(error).toLowerCase().includes('email') && String(error).toLowerCase().includes('confirm') && (
+                <div className="mt-2 text-xs font-bold text-red-700/80">
+                  Solusi: buka inbox email kamu, klik link verifikasi, lalu coba login lagi.
+                </div>
+              )}
             </div>
           )}
 
@@ -114,7 +119,7 @@ const Login = () => {
             disabled={submitting}
             className="w-full py-4 bg-emerald-600 disabled:bg-emerald-400 text-white rounded-[1.5rem] font-black text-xs uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-600/20 flex items-center justify-center gap-2"
           >
-            Masuk <ArrowRight className="w-4 h-4" />
+            {submitting ? 'Memproses...' : 'Masuk'} <ArrowRight className="w-4 h-4" />
           </button>
         </form>
 
