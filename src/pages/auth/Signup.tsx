@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, Mail, Lock, ArrowRight, User, MapPin, Phone, Building2, Briefcase } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../auth/AuthProvider';
+import { postLoginPath } from '../../auth/postLoginPath';
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -23,21 +24,7 @@ const Signup = () => {
   React.useEffect(() => {
     if (loading) return;
     if (!profile) return;
-    const dest =
-      profile.role === 'super_admin'
-        ? '/super-admin'
-        : profile.role === 'admin_masjid'
-          ? '/admin'
-          : profile.role === 'panitia'
-            ? '/panitia'
-            : profile.role === 'jagal'
-              ? '/jagal'
-              : profile.role === 'supplier'
-                ? '/supplier'
-                : profile.role === 'shohibul'
-                  ? '/shohibul'
-                  : '/';
-    navigate(dest, { replace: true });
+    navigate(postLoginPath(profile.role), { replace: true });
   }, [profile, loading, navigate]);
 
   const onSubmit = async (e: React.FormEvent) => {

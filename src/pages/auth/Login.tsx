@@ -1,70 +1,148 @@
 import React from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { ShieldCheck, Mail, Lock, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
-import { Link } from 'react-router-dom';
+import { supabase } from '../../lib/supabaseClient';
+import { postLoginPath } from '../../auth/postLoginPath';
+import { fetchProfileByUserId } from '../../auth/profileQuery';
+import { mapAuthErrorToMessage } from '../../auth/mapAuthError';
 import { signInWithPasswordDirect } from '../../lib/goTruePasswordLogin';
+
+const USE_DIRECT_GOTRUE =
+  (import.meta.env.VITE_USE_DIRECT_GOTRUE_LOGIN as string | undefined) === 'true';
+
+const PROFILE_WAIT_MS = 15_000;
+const PROFILE_POLL_EVERY_MS = 200;
+
+async function waitForProfileRow(userId: string): Promise<import('../../auth/AuthProvider').Profile | null> {
+  const deadline = Date.now() + PROFILE_WAIT_MS;
+  while (Date.now() < deadline) {
+    try {
+      const p = await fetchProfileByUserId(userId);
+      if (p) return p;
+    } catch {
+      // table/network hiccup — keep polling
+    }
+    await new Promise((r) => setTimeout(r, PROFILE_POLL_EVERY_MS));
+  }
+  return null;
+}
 
 const Login = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { profile, loading } = useAuth();
+  const { profile, loading, refreshProfile, signOut, user } = useAuth();
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [error, setError] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
   const [statusText, setStatusText] = React.useState<string | null>(null);
+  const [missingProfile, setMissingProfile] = React.useState(false);
+  const [userIdForRetry, setUserIdForRetry] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (loading) return;
-    if (!profile) return;
-
-    const dest =
-      profile.role === 'super_admin'
-        ? '/super-admin'
-        : profile.role === 'admin_masjid'
-          ? '/admin'
-          : profile.role === 'panitia'
-            ? '/panitia'
-            : profile.role === 'jagal'
-              ? '/jagal'
-              : profile.role === 'supplier'
-                ? '/supplier'
-                : profile.role === 'shohibul'
-                  ? '/shohibul'
-                  : '/';
-
-    navigate(dest, { replace: true });
+    if (profile) {
+      setMissingProfile(false);
+      setUserIdForRetry(null);
+      navigate(postLoginPath(profile.role), { replace: true });
+    }
   }, [profile, loading, navigate]);
+
+  React.useEffect(() => {
+    if (loading) return;
+    if (user && !profile) {
+      setUserIdForRetry((id) => id ?? user.id);
+      setMissingProfile(true);
+    } else if (!user) {
+      setMissingProfile(false);
+      setUserIdForRetry(null);
+    }
+  }, [loading, user, profile]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setMissingProfile(false);
+    setUserIdForRetry(null);
+
+    const eTrim = email.trim();
+    if (!eTrim || !password) {
+      setError('Email dan password wajib diisi.');
+      return;
+    }
+
     setSubmitting(true);
     setStatusText('Mencoba login...');
     try {
-      await signInWithPasswordDirect(email, password);
-    } catch (err: any) {
+      if (USE_DIRECT_GOTRUE) {
+        await signInWithPasswordDirect(eTrim, password);
+      } else {
+        const { data, error: signInErr } = await supabase.auth.signInWithPassword({
+          email: eTrim,
+          password,
+        });
+        if (signInErr) throw signInErr;
+        if (!data.user?.id) throw new Error('Login gagal: tidak ada data pengguna.');
+      }
+
+      setStatusText('Memuat profil...');
+      const { data: userData, error: userErr } = await supabase.auth.getUser();
+      if (userErr) throw userErr;
+      const uid = userData.user?.id;
+      if (!uid) throw new Error('Sesi tidak valid setelah login.');
+
+      setUserIdForRetry(uid);
+      const p = await waitForProfileRow(uid);
+      await refreshProfile();
+
+      if (p) {
+        setMissingProfile(false);
+        setUserIdForRetry(null);
+        navigate(postLoginPath(p.role), { replace: true });
+        return;
+      }
+
+      setMissingProfile(true);
+    } catch (err: unknown) {
       console.error('Login error:', err);
-      const msg = String(err?.message || '').toLowerCase();
-      if (err?.name === 'AbortError' || msg.includes('aborted') || msg.includes('signal is aborted')) {
-        setError(
-          'Permintaan login terhenti (timeout). Biasanya karena jaringan/adblock memblokir ke Supabase, atau env URL/key salah. Coba nonaktifkan adblock untuk domain ini, atau cek Network tab untuk request ke /auth/v1/token.',
-        );
-        return;
-      }
-      if (msg.includes('failed to fetch') || msg.includes('networkerror')) {
-        setError(
-          'Tidak bisa menghubungi server Supabase (network). Cek koneksi internet, VPN, atau firewall. Pastikan domain `*.supabase.co` tidak diblokir.',
-        );
-        return;
-      }
-      setError(err?.message ?? 'Login gagal');
+      setError(mapAuthErrorToMessage(err));
     } finally {
       setSubmitting(false);
       setStatusText(null);
     }
   };
+
+  const onRetryProfile = async () => {
+    if (!userIdForRetry) return;
+    setError(null);
+    setSubmitting(true);
+    setStatusText('Mengambil data profil...');
+    try {
+      const p = await waitForProfileRow(userIdForRetry);
+      await refreshProfile();
+      if (p) {
+        setMissingProfile(false);
+        setUserIdForRetry(null);
+        navigate(postLoginPath(p.role), { replace: true });
+      } else {
+        setError('Profil belum tersedia. Pastikan admin sudah men-setup akun Anda, lalu coba lagi.');
+      }
+    } catch (err) {
+      setError(mapAuthErrorToMessage(err));
+    } finally {
+      setSubmitting(false);
+      setStatusText(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+        <p className="text-sm font-bold text-slate-500">Memuat sesi...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
@@ -74,18 +152,56 @@ const Login = () => {
             <div className="w-12 h-12 bg-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-600/20">
               <ShieldCheck className="text-white w-8 h-8" />
             </div>
-            <span className="text-3xl font-bold text-slate-900 tracking-tight">Qurbanesia<span className="text-emerald-600">.id</span></span>
+            <span className="text-3xl font-bold text-slate-900 tracking-tight">
+              Qurbanesia<span className="text-emerald-600">.id</span>
+            </span>
           </div>
           <h1 className="text-3xl font-extrabold text-slate-900 mb-2">Masuk</h1>
           <p className="text-slate-500">Gunakan akun yang sudah didaftarkan oleh admin platform.</p>
         </div>
 
-        <form onSubmit={onSubmit} className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-200/50 p-10 space-y-6">
-          {searchParams.get('signup') === '1' && (
-            <div className="bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-2xl p-4 text-sm font-bold">
-              Pendaftaran berhasil. Silakan login. Jika diminta verifikasi email, cek inbox kamu dulu.
+        {searchParams.get('signup') === '1' && (
+          <div className="mb-6 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-2xl p-4 text-sm font-bold text-center">
+            Pendaftaran berhasil. Silakan login. Jika diminta verifikasi email, cek inbox kamu dulu.
+          </div>
+        )}
+        {searchParams.get('reset') === '1' && (
+          <div className="mb-6 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-2xl p-4 text-sm font-bold text-center">
+            Password berhasil diubah. Silakan masuk dengan password baru.
+          </div>
+        )}
+
+        {missingProfile && (
+          <div className="mb-6 bg-amber-50 border border-amber-100 text-amber-900 rounded-2xl p-4 text-sm font-bold">
+            <p className="mb-3">
+              Akun sudah login, tetapi data profil/role belum ditemukan. Biasanya admin perlu menyelesaikan
+              penyesuaian akun, atau coba sebentar lagi.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={onRetryProfile}
+                disabled={submitting}
+                className="px-4 py-2 bg-amber-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-amber-700 disabled:opacity-50"
+              >
+                Coba ambil profil lagi
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setMissingProfile(false);
+                  setUserIdForRetry(null);
+                  await signOut();
+                }}
+                className="px-4 py-2 bg-white text-amber-900 border border-amber-200 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-amber-100"
+              >
+                Keluar
+              </button>
             </div>
-          )}
+          </div>
+        )}
+
+        <form onSubmit={onSubmit} className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-200/50 p-10 space-y-6">
           <div className="space-y-2">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Email</label>
             <div className="relative">
@@ -96,13 +212,22 @@ const Login = () => {
                 type="email"
                 autoComplete="email"
                 placeholder="nama@contoh.com"
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
+                disabled={submitting}
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all disabled:opacity-50"
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Password</label>
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Password</label>
+              <Link
+                to="/forgot-password"
+                className="text-[10px] font-black text-emerald-600 uppercase tracking-widest hover:underline"
+              >
+                Lupa password?
+              </Link>
+            </div>
             <div className="relative">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
@@ -111,7 +236,8 @@ const Login = () => {
                 type="password"
                 autoComplete="current-password"
                 placeholder="••••••••"
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
+                disabled={submitting}
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all disabled:opacity-50"
               />
             </div>
           </div>
@@ -119,9 +245,9 @@ const Login = () => {
           {error && (
             <div className="bg-red-50 border border-red-100 text-red-700 rounded-2xl p-4 text-sm font-bold">
               {error}
-              {String(error).toLowerCase().includes('email') && String(error).toLowerCase().includes('confirm') && (
+              {String(error).toLowerCase().includes('verifikasi') && (
                 <div className="mt-2 text-xs font-bold text-red-700/80">
-                  Solusi: buka inbox email kamu, klik link verifikasi, lalu coba login lagi.
+                  Cek folder spam, lalu coba link verifikasi dari email.
                 </div>
               )}
             </div>

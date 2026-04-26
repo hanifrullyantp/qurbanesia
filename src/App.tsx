@@ -29,6 +29,8 @@ import DonaturDashboard from './pages/donatur/DonaturDashboard';
 import Marketplace from './pages/marketplace/Marketplace';
 import Login from './pages/auth/Login';
 import Signup from './pages/auth/Signup';
+import ForgotPassword from './pages/auth/ForgotPassword';
+import SetNewPassword from './pages/auth/SetNewPassword';
 import { RequireAuth } from './auth/RequireAuth';
 import { RequireRole } from './auth/RequireRole';
 
@@ -39,6 +41,8 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<SetNewPassword />} />
         
         {/* Super Admin Routes */}
         <Route

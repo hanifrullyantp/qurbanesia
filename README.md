@@ -10,6 +10,7 @@ npm install
 - **Env**: copy `.env.example` → `.env` lalu isi:
   - `VITE_SUPABASE_URL`
   - `VITE_SUPABASE_ANON_KEY`
+  - (opsional) `VITE_USE_DIRECT_GOTRUE_LOGIN` — baca di `.env.example`
   - (opsional, hanya untuk script admin lokal) `SUPABASE_SERVICE_ROLE_KEY`
 
 - **Run**:
@@ -35,6 +36,12 @@ npm run dev
 - Import repo ke Vercel.
 - Set **Environment Variables** di Vercel sesuai `.env.example`.
 - `vercel.json` sudah disiapkan untuk SPA rewrite (React Router).
+
+### Auth: password reset (Supabase)
+Agar **Lupa password** + halaman **Password baru** (`/forgot-password`, `/reset-password`) berjalan, konfigurasi di Supabase **Authentication → URL Configuration** harus memuat:
+- **Site URL**: misal production `https://<domain-anda>.vercel.app` (atau domain kustom).
+- **Redirect URLs**: tambahkan `https://<domain-anda>.vercel.app/reset-password` (dan bila perlu: URL preview Vercel, `http://localhost:5173/reset-password` untuk lokal).
+Email reset dari Supabase akan mengarahkan pengguna ke `redirectTo` yang dikirim app (`/reset-password`). Tanpa entri di allowlist, browser bisa diblokir atau kembali error setelah klik link.
 
 ### Buat akun `super_admin` (lokal via service role)
 Jangan pernah share `SUPABASE_SERVICE_ROLE_KEY` di chat atau commit git.
