@@ -11,6 +11,7 @@ import {
 import { Link, useParams } from 'react-router-dom';
 import { cn } from '../../utils/cn';
 import { createTrackingEventForAnimal } from '../../services/opsTracking';
+import { WithTenantDataPrompt } from '../../components/tenant/WithTenantDataPrompt';
 
 const SlaughterProcess = () => {
   const { id } = useParams();
@@ -37,6 +38,7 @@ const SlaughterProcess = () => {
   };
 
   return (
+    <WithTenantDataPrompt>
     <div className="max-w-md mx-auto bg-slate-50 min-h-screen pb-24 font-sans">
       <header className="bg-white border-b border-slate-100 p-4 sticky top-0 z-30 flex items-center justify-between">
          <Link to="/jagal" className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
@@ -142,6 +144,7 @@ const SlaughterProcess = () => {
         </div>
       </div>
     </div>
+    </WithTenantDataPrompt>
   );
 };
 

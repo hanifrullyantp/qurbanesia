@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '../../utils/cn';
+import { WithTenantDataPrompt } from '../../components/tenant/WithTenantDataPrompt';
 
 const KANBAN_COLUMNS = [
   { id: 'todo', label: 'Belum Mulai', color: '#EF4444', icon: '🔴' },
@@ -59,6 +60,7 @@ const PanitiaDashboard = () => {
   });
 
   return (
+    <WithTenantDataPrompt>
     <div className="max-w-md mx-auto bg-slate-50 min-h-screen pb-24 font-sans">
       {/* Header Panitia */}
       <header className="bg-emerald-600 text-white p-6 rounded-b-[2rem] shadow-lg">
@@ -250,6 +252,7 @@ const PanitiaDashboard = () => {
          </button>
       </nav>
     </div>
+    </WithTenantDataPrompt>
   );
 };
 

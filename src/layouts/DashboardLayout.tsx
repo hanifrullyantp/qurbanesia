@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useAuth } from '../auth/AuthProvider';
+import { WithTenantDataPrompt } from '../components/tenant/WithTenantDataPrompt';
 
 const DashboardLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
@@ -69,6 +70,7 @@ const DashboardLayout = () => {
         : shohibulMenu;
 
   return (
+    <WithTenantDataPrompt>
     <div className="min-h-screen bg-slate-50 flex">
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
@@ -172,6 +174,7 @@ const DashboardLayout = () => {
         </div>
       </main>
     </div>
+    </WithTenantDataPrompt>
   );
 };
 

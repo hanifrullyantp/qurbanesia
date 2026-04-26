@@ -1,6 +1,6 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, Mail, Lock, ArrowRight, User, MapPin, Phone, Building2, Briefcase } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { ShieldCheck, Mail, Lock, ArrowRight, User, Phone } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../auth/AuthProvider';
 import { postLoginPath } from '../../auth/postLoginPath';
@@ -8,12 +8,8 @@ import { postLoginPath } from '../../auth/postLoginPath';
 const Signup = () => {
   const navigate = useNavigate();
   const { profile, loading } = useAuth();
-  const [mosqueName, setMosqueName] = React.useState('');
-  const [locationFull, setLocationFull] = React.useState('');
   const [fullName, setFullName] = React.useState('');
-  const [mosquePosition, setMosquePosition] = React.useState('');
   const [phone, setPhone] = React.useState('');
-  const [address, setAddress] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [error, setError] = React.useState<string | null>(null);
@@ -37,21 +33,23 @@ const Signup = () => {
       if (!email.trim() || !password) {
         throw new Error('Email dan password wajib diisi.');
       }
+      if (!fullName.trim()) {
+        throw new Error('Nama lengkap wajib diisi.');
+      }
+      if (!phone.trim()) {
+        throw new Error('No. HP wajib diisi.');
+      }
       if (password.length < 8) {
         throw new Error('Password minimal 8 karakter.');
       }
 
       const { error: signUpError } = await supabase.auth.signUp({
-        email,
+        email: email.trim(),
         password,
         options: {
           data: {
-            full_name: fullName,
-            mosque_name: mosqueName,
-            location_full: locationFull,
-            mosque_position: mosquePosition,
-            phone,
-            address,
+            full_name: fullName.trim(),
+            phone: phone.trim(),
           },
         },
       });
@@ -90,38 +88,13 @@ const Signup = () => {
             </span>
           </div>
           <h1 className="text-3xl font-extrabold text-slate-900 mb-2">Daftar</h1>
-          <p className="text-slate-500">Buat akun baru. Nanti admin bisa assign tenant & role sesuai kebutuhan.</p>
+          <p className="text-slate-500">
+            Cukup email, nama, dan nomor HP. Data masjid diatur nanti oleh admin masjid setelah akun terhubung ke
+            organisasi.
+          </p>
         </div>
 
         <form onSubmit={onSubmit} className="bg-white rounded-[2.5rem] border border-slate-200 shadow-xl shadow-slate-200/50 p-10 space-y-6">
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nama Masjid</label>
-            <div className="relative">
-              <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                value={mosqueName}
-                onChange={(e) => setMosqueName(e.target.value)}
-                type="text"
-                placeholder="Masjid ..."
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Lokasi lengkap Masjid</label>
-            <div className="relative">
-              <MapPin className="absolute left-4 top-4 w-4 h-4 text-slate-400" />
-              <textarea
-                value={locationFull}
-                onChange={(e) => setLocationFull(e.target.value)}
-                rows={3}
-                placeholder="Alamat/lokasi masjid (kecamatan, kota, provinsi, patokan)"
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
-              />
-            </div>
-          </div>
-
           <div className="space-y-2">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nama lengkap</label>
             <div className="relative">
@@ -130,21 +103,7 @@ const Signup = () => {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 type="text"
-                placeholder="Nama"
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Jabatan di Masjid</label>
-            <div className="relative">
-              <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                value={mosquePosition}
-                onChange={(e) => setMosquePosition(e.target.value)}
-                type="text"
-                placeholder="Contoh: Ketua DKM / Bendahara / Sekretaris"
+                placeholder="Nama sesuai identitas"
                 className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
               />
             </div>
@@ -160,20 +119,6 @@ const Signup = () => {
                 type="tel"
                 autoComplete="tel"
                 placeholder="08xxxxxxxxxx"
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Alamat lengkap</label>
-            <div className="relative">
-              <MapPin className="absolute left-4 top-4 w-4 h-4 text-slate-400" />
-              <textarea
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                rows={3}
-                placeholder="Alamat rumah/kantor (untuk kebutuhan administrasi)"
                 className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-emerald-500/10 transition-all"
               />
             </div>
@@ -212,10 +157,6 @@ const Signup = () => {
           {error && (
             <div className="bg-red-50 border border-red-100 text-red-700 rounded-2xl p-4 text-sm font-bold">
               {error}
-              <div className="mt-2 text-xs font-bold text-red-700/80">
-                Jika ini timeout/blank, pastikan `VITE_SUPABASE_URL` base (tanpa `/rest/v1`) dan browser bisa akses
-                `https://&lt;ref&gt;.supabase.co/auth/v1/health`.
-              </div>
             </div>
           )}
 
@@ -235,13 +176,12 @@ const Signup = () => {
 
           {statusText && <div className="text-center text-xs font-bold text-slate-500">{statusText}</div>}
 
-          <button
-            type="button"
-            onClick={() => navigate('/login')}
-            className="w-full py-4 bg-white text-slate-700 rounded-[1.5rem] font-black text-xs uppercase tracking-widest border border-slate-200 hover:bg-slate-50 transition-all"
-          >
-            Sudah punya akun? Masuk
-          </button>
+          <p className="text-center text-sm text-slate-500">
+            Sudah punya akun?{' '}
+            <Link to="/login" className="font-bold text-emerald-600 hover:underline">
+              Masuk
+            </Link>
+          </p>
         </form>
       </div>
     </div>
@@ -249,4 +189,3 @@ const Signup = () => {
 };
 
 export default Signup;
-

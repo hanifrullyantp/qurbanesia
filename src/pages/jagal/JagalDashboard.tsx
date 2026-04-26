@@ -15,6 +15,7 @@ import {
 import { Link } from 'react-router-dom';
 import { cn } from '../../utils/cn';
 import { listActiveAnimalQueue } from '../../services/opsTracking';
+import { WithTenantDataPrompt } from '../../components/tenant/WithTenantDataPrompt';
 
 const JagalDashboard = () => {
   const [queue, setQueue] = React.useState<any[]>([]);
@@ -57,6 +58,7 @@ const JagalDashboard = () => {
   ];
 
   return (
+    <WithTenantDataPrompt>
     <div className="max-w-md mx-auto bg-slate-50 min-h-screen pb-24 font-sans">
       {/* Jagal Header */}
       <header className="bg-slate-900 text-white p-6 rounded-b-[2rem] shadow-lg">
@@ -222,6 +224,7 @@ const JagalDashboard = () => {
          </button>
       </nav>
     </div>
+    </WithTenantDataPrompt>
   );
 };
 

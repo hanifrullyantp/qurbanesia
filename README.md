@@ -22,6 +22,7 @@ npm run dev
 ### Supabase (schema + storage + functions)
 - **Migrations** ada di `supabase/migrations/`.
 - Jalankan migrations via Supabase CLI atau Dashboard SQL editor.
+- **Onboarding data masjid**: setelah `202604260001_tenant_onboarding_signup.sql`, kolom `tenants.onboarding_profile_complete` dipakai untuk menandai apakah data masjid sudah diisi. Signup mandiri hanya membuat `profiles` peran `shohibul` tanpa `tenant_id` (data masjid diisi nanti lewat `admin_masjid` setelah di-assign ke tenant).
 - **Buckets** dibuat oleh migration `202604230002_storage.sql`.
 - **Storage policies** ada di `202604230003_storage_policies.sql` dengan konvensi path: `${tenant_id}/...`.
 
