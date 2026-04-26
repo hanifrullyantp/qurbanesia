@@ -64,25 +64,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     let isMounted = true;
 
+    const SESSION_INIT_MS = 12_000;
+
+    function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+      return Promise.race([
+        p,
+        new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error(`timeout:${label}`)), ms);
+        }),
+      ]);
+    }
+
     (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!isMounted) return;
-      setSession(data.session);
-      setUser(data.session?.user ?? null);
-      if (data.session?.user) {
-        try {
-          const p = await fetchProfile(data.session.user.id);
-          if (!isMounted) return;
-          setProfile(p);
-        } catch {
-          // profile might not exist yet
-          if (!isMounted) return;
+      try {
+        const { data, error: sessionError } = await withTimeout(
+          supabase.auth.getSession(),
+          SESSION_INIT_MS,
+          'getSession',
+        );
+        if (!isMounted) return;
+        if (sessionError) {
+          setSession(null);
+          setUser(null);
+          setProfile(null);
+          return;
+        }
+        setSession(data.session);
+        setUser(data.session?.user ?? null);
+        if (data.session?.user) {
+          // Jangan tunggu query `profiles` untuk menyelesaikan init — kalau PostgREST hang,
+          // halaman publik (mis. /login) tidak boleh stuck "Memuat sesi..." selamanya.
+          const uid = data.session.user.id;
+          void (async () => {
+            try {
+              const p = await fetchProfile(uid);
+              if (!isMounted) return;
+              setProfile(p);
+            } catch {
+              if (!isMounted) return;
+              setProfile(null);
+            }
+          })();
+        } else {
           setProfile(null);
         }
-      } else {
+      } catch {
+        if (!isMounted) return;
+        setSession(null);
+        setUser(null);
         setProfile(null);
+      } finally {
+        if (isMounted) setLoading(false);
       }
-      setLoading(false);
     })();
 
     const { data: sub } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
