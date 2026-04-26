@@ -4,6 +4,7 @@ import { ShieldCheck, Mail, Lock, ArrowRight, User, Phone } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../auth/AuthProvider';
 import { postLoginPath } from '../../auth/postLoginPath';
+import { isUserAlreadyRegisteredError } from '../../auth/signupErrors';
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -43,17 +44,28 @@ const Signup = () => {
         throw new Error('Password minimal 8 karakter.');
       }
 
+      const redirect = `${window.location.origin}/auth/confirm`;
       const { error: signUpError } = await supabase.auth.signUp({
         email: email.trim(),
         password,
         options: {
+          emailRedirectTo: redirect,
           data: {
             full_name: fullName.trim(),
             phone: phone.trim(),
           },
         },
       });
-      if (signUpError) throw signUpError;
+      if (signUpError) {
+        if (isUserAlreadyRegisteredError(signUpError)) {
+          const q = new URLSearchParams();
+          q.set('email', email.trim());
+          q.set('already', '1');
+          navigate(`/login?${q.toString()}`, { replace: true });
+          return;
+        }
+        throw signUpError;
+      }
 
       setDone(true);
       setStatusText('Berhasil. Mengarahkan ke login...');

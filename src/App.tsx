@@ -31,6 +31,9 @@ import Login from './pages/auth/Login';
 import Signup from './pages/auth/Signup';
 import ForgotPassword from './pages/auth/ForgotPassword';
 import SetNewPassword from './pages/auth/SetNewPassword';
+import AuthConfirm from './pages/auth/AuthConfirm';
+import SharedViewDashboard from './pages/view/SharedViewDashboard';
+import JoinRequestsPage from './pages/admin/JoinRequestsPage';
 import { RequireAuth } from './auth/RequireAuth';
 import { RequireRole } from './auth/RequireRole';
 
@@ -185,6 +188,7 @@ function App() {
           <Route path="finance" element={<FinancialManagement />} />
           <Route path="distribution" element={<DistributionManagement />} />
           <Route path="notifications" element={<NotificationManagement />} />
+          <Route path="join-requests" element={<JoinRequestsPage />} />
           <Route path="settings" element={<Settings />} />
           <Route path="sop" element={<SopManagement />} />
           <Route path="sop/:id" element={<SopDetail />} />

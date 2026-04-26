@@ -4,6 +4,7 @@ import { ShieldCheck, Mail, Lock, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
 import { supabase } from '../../lib/supabaseClient';
 import { postLoginPath } from '../../auth/postLoginPath';
+import { resolveAfterAuthPath } from '../../auth/resolveAfterAuth';
 import { fetchProfileByUserId } from '../../auth/profileQuery';
 import { mapAuthErrorToMessage } from '../../auth/mapAuthError';
 import { signInWithPasswordDirect } from '../../lib/goTruePasswordLogin';
@@ -41,13 +42,30 @@ const Login = () => {
   const [userIdForRetry, setUserIdForRetry] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    if (loading) return;
-    if (profile) {
-      setMissingProfile(false);
-      setUserIdForRetry(null);
-      navigate(postLoginPath(profile.role), { replace: true });
+    const e = searchParams.get('email');
+    if (e) {
+      setEmail((prev) => prev || decodeURIComponent(e));
     }
-  }, [profile, loading, navigate]);
+  }, [searchParams]);
+
+  React.useEffect(() => {
+    if (loading) return;
+    if (!profile) return;
+    let cancelled = false;
+    setMissingProfile(false);
+    setUserIdForRetry(null);
+    (async () => {
+      const returnTo = searchParams.get('returnTo');
+      const path =
+        returnTo && returnTo.startsWith('/') && !returnTo.startsWith('//')
+          ? returnTo
+          : await resolveAfterAuthPath(profile);
+      if (!cancelled) navigate(path, { replace: true });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [profile, loading, navigate, searchParams]);
 
   React.useEffect(() => {
     if (loading) return;
@@ -99,7 +117,12 @@ const Login = () => {
       if (p) {
         setMissingProfile(false);
         setUserIdForRetry(null);
-        navigate(postLoginPath(p.role), { replace: true });
+        const returnTo = searchParams.get('returnTo');
+        const path =
+          returnTo && returnTo.startsWith('/') && !returnTo.startsWith('//')
+            ? returnTo
+            : await resolveAfterAuthPath(p);
+        navigate(path, { replace: true });
         return;
       }
 
@@ -124,7 +147,12 @@ const Login = () => {
       if (p) {
         setMissingProfile(false);
         setUserIdForRetry(null);
-        navigate(postLoginPath(p.role), { replace: true });
+        const returnTo = searchParams.get('returnTo');
+        const path =
+          returnTo && returnTo.startsWith('/') && !returnTo.startsWith('//')
+            ? returnTo
+            : await resolveAfterAuthPath(p);
+        navigate(path, { replace: true });
       } else {
         setError('Profil belum tersedia. Pastikan admin sudah men-setup akun Anda, lalu coba lagi.');
       }
@@ -168,6 +196,16 @@ const Login = () => {
         {searchParams.get('reset') === '1' && (
           <div className="mb-6 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-2xl p-4 text-sm font-bold text-center">
             Password berhasil diubah. Silakan masuk dengan password baru.
+          </div>
+        )}
+        {searchParams.get('already') === '1' && (
+          <div className="mb-6 bg-amber-50 border border-amber-100 text-amber-900 rounded-2xl p-4 text-sm font-bold text-center">
+            Email ini sudah terdaftar. Silakan masuk di bawah (email sudah kami isikan jika tersedia).
+          </div>
+        )}
+        {searchParams.get('verify') === '1' && (
+          <div className="mb-6 bg-emerald-50 border border-emerald-100 text-emerald-800 rounded-2xl p-4 text-sm font-bold text-center">
+            Verifikasi email berhasil. Silakan masuk.
           </div>
         )}
 

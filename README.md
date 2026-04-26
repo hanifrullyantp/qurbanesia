@@ -44,6 +44,12 @@ Agar **Lupa password** + halaman **Password baru** (`/forgot-password`, `/reset-
 - **Redirect URLs**: tambahkan `https://<domain-anda>.vercel.app/reset-password` (dan bila perlu: URL preview Vercel, `http://localhost:5173/reset-password` untuk lokal).
 Email reset dari Supabase akan mengarahkan pengguna ke `redirectTo` yang dikirim app (`/reset-password`). Tanpa entri di allowlist, browser bisa diblokir atau kembali error setelah klik link.
 
+Tambahkan juga `https://<host>/auth/confirm` (verifikasi email pendaftaran) dan bila perlu `https://<host>/view` jika memakai parameter URL terkait. Pendaftaran memakai `emailRedirectTo` = `{origin}/auth/confirm`. Saat pindah domain kustom, perbarui **Site URL** + **Redirect URLs** agar match.
+
+### View / antrian permintaan
+- **`/view`**: dashboard pantau read-only, QR/parameter `?c=KODE` / `?t=tenant-uuid` (publik).
+- **Admin** → **Permintaan** (`/admin/join-requests`): setujui/tolak `join_requests` (butuh migrasi `202604270001_join_requests_invite_codes.sql`).
+
 ### Buat akun `super_admin` (lokal via service role)
 Jangan pernah share `SUPABASE_SERVICE_ROLE_KEY` di chat atau commit git.
 

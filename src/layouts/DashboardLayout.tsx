@@ -20,7 +20,8 @@ import {
   ShoppingCart, 
   Wallet,
   Package,
-  Heart
+  Heart,
+  UserPlus,
 } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useAuth } from '../auth/AuthProvider';
@@ -42,6 +43,7 @@ const DashboardLayout = () => {
     { title: 'Hewan Qurban', icon: <MapPin className="w-5 h-5" />, path: '/admin/hewan' },
     { title: 'Distribusi', icon: <Package className="w-5 h-5" />, path: '/admin/distribution' },
     { title: 'Notifications', icon: <Bell className="w-5 h-5" />, path: '/admin/notifications' },
+    { title: 'Permintaan', icon: <UserPlus className="w-5 h-5" />, path: '/admin/join-requests' },
     { title: 'Live Monitoring', icon: <Activity className="w-5 h-5" />, path: '/admin/monitoring' },
     { title: 'Organisasi', icon: <ShieldCheck className="w-5 h-5" />, path: '/admin/organization' },
     { title: 'Manajemen SOP', icon: <FileText className="w-5 h-5" />, path: '/admin/sop' },
