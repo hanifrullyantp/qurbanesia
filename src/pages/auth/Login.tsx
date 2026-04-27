@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { ShieldCheck, Mail, Lock, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
 import { supabase } from '../../lib/supabaseClient';
-import { postLoginPath } from '../../auth/postLoginPath';
 import { resolveAfterAuthPath } from '../../auth/resolveAfterAuth';
 import { fetchProfileByUserId } from '../../auth/profileQuery';
 import { mapAuthErrorToMessage } from '../../auth/mapAuthError';
@@ -32,14 +31,12 @@ async function waitForProfileRow(userId: string): Promise<import('../../auth/Aut
 const Login = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { profile, loading, refreshProfile, signOut, user } = useAuth();
+  const { profile, loading, refreshProfile, user } = useAuth();
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [error, setError] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
   const [statusText, setStatusText] = React.useState<string | null>(null);
-  const [missingProfile, setMissingProfile] = React.useState(false);
-  const [userIdForRetry, setUserIdForRetry] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     const e = searchParams.get('email');
@@ -50,39 +47,24 @@ const Login = () => {
 
   React.useEffect(() => {
     if (loading) return;
-    if (!profile) return;
+    if (!profile && !user) return;
     let cancelled = false;
-    setMissingProfile(false);
-    setUserIdForRetry(null);
     (async () => {
       const returnTo = searchParams.get('returnTo');
       const path =
         returnTo && returnTo.startsWith('/') && !returnTo.startsWith('//')
           ? returnTo
-          : await resolveAfterAuthPath(profile);
+          : await resolveAfterAuthPath(profile ?? null);
       if (!cancelled) navigate(path, { replace: true });
     })();
     return () => {
       cancelled = true;
     };
-  }, [profile, loading, navigate, searchParams]);
-
-  React.useEffect(() => {
-    if (loading) return;
-    if (user && !profile) {
-      setUserIdForRetry((id) => id ?? user.id);
-      setMissingProfile(true);
-    } else if (!user) {
-      setMissingProfile(false);
-      setUserIdForRetry(null);
-    }
-  }, [loading, user, profile]);
+  }, [profile, loading, navigate, searchParams, user]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setMissingProfile(false);
-    setUserIdForRetry(null);
 
     const eTrim = email.trim();
     if (!eTrim || !password) {
@@ -110,13 +92,10 @@ const Login = () => {
       const uid = userData.user?.id;
       if (!uid) throw new Error('Sesi tidak valid setelah login.');
 
-      setUserIdForRetry(uid);
       const p = await waitForProfileRow(uid);
       await refreshProfile();
 
       if (p) {
-        setMissingProfile(false);
-        setUserIdForRetry(null);
         const returnTo = searchParams.get('returnTo');
         const path =
           returnTo && returnTo.startsWith('/') && !returnTo.startsWith('//')
@@ -126,37 +105,9 @@ const Login = () => {
         return;
       }
 
-      setMissingProfile(true);
+      navigate('/demo', { replace: true });
     } catch (err: unknown) {
       console.error('Login error:', err);
-      setError(mapAuthErrorToMessage(err));
-    } finally {
-      setSubmitting(false);
-      setStatusText(null);
-    }
-  };
-
-  const onRetryProfile = async () => {
-    if (!userIdForRetry) return;
-    setError(null);
-    setSubmitting(true);
-    setStatusText('Mengambil data profil...');
-    try {
-      const p = await waitForProfileRow(userIdForRetry);
-      await refreshProfile();
-      if (p) {
-        setMissingProfile(false);
-        setUserIdForRetry(null);
-        const returnTo = searchParams.get('returnTo');
-        const path =
-          returnTo && returnTo.startsWith('/') && !returnTo.startsWith('//')
-            ? returnTo
-            : await resolveAfterAuthPath(p);
-        navigate(path, { replace: true });
-      } else {
-        setError('Profil belum tersedia. Pastikan admin sudah men-setup akun Anda, lalu coba lagi.');
-      }
-    } catch (err) {
       setError(mapAuthErrorToMessage(err));
     } finally {
       setSubmitting(false);
@@ -206,36 +157,6 @@ const Login = () => {
         {searchParams.get('verify') === '1' && (
           <div className="mb-6 bg-emerald-50 border border-emerald-100 text-emerald-800 rounded-2xl p-4 text-sm font-bold text-center">
             Verifikasi email berhasil. Silakan masuk.
-          </div>
-        )}
-
-        {missingProfile && (
-          <div className="mb-6 bg-amber-50 border border-amber-100 text-amber-900 rounded-2xl p-4 text-sm font-bold">
-            <p className="mb-3">
-              Akun sudah login, tetapi data profil/role belum ditemukan. Biasanya admin perlu menyelesaikan
-              penyesuaian akun, atau coba sebentar lagi.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={onRetryProfile}
-                disabled={submitting}
-                className="px-4 py-2 bg-amber-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-amber-700 disabled:opacity-50"
-              >
-                Coba ambil profil lagi
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  setMissingProfile(false);
-                  setUserIdForRetry(null);
-                  await signOut();
-                }}
-                className="px-4 py-2 bg-white text-amber-900 border border-amber-200 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-amber-100"
-              >
-                Keluar
-              </button>
-            </div>
           </div>
         )}
 
