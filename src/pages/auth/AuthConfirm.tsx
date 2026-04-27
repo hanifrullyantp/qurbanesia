@@ -47,7 +47,7 @@ export default function AuthConfirm() {
             return;
           }
         }
-        const path = p ? await resolveAfterAuthPath(p) : '/view';
+        const path = p ? await resolveAfterAuthPath(p) : '/demo';
         if (!cancelled) navigate(path, { replace: true });
       } catch (e) {
         if (!cancelled) {

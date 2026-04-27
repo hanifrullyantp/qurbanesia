@@ -34,6 +34,7 @@ import SetNewPassword from './pages/auth/SetNewPassword';
 import AuthConfirm from './pages/auth/AuthConfirm';
 import SharedViewDashboard from './pages/view/SharedViewDashboard';
 import JoinRequestsPage from './pages/admin/JoinRequestsPage';
+import DemoDashboard from './pages/demo/DemoDashboard';
 import { RequireAuth } from './auth/RequireAuth';
 import { RequireRole } from './auth/RequireRole';
 
@@ -46,7 +47,17 @@ function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<SetNewPassword />} />
-        
+        <Route path="/auth/confirm" element={<AuthConfirm />} />
+        <Route path="/view" element={<SharedViewDashboard />} />
+        <Route
+          path="/demo"
+          element={
+            <RequireAuth>
+              <DemoDashboard />
+            </RequireAuth>
+          }
+        />
+
         {/* Super Admin Routes */}
         <Route
           path="/super-admin"

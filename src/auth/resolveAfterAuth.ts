@@ -3,10 +3,13 @@ import { postLoginPath } from './postLoginPath';
 import { listMyPendingJoinRequests } from '../services/joinRequests';
 
 /**
- * Tujuan setelah login/verifikasi: pending join → /view, shohibul belum punya tenant → /view, selain itu dashboard peran.
+ * Setelah login/verifikasi:
+ * - pending join → /view? (konteks masjid)
+ * - belum punya tenant (bukan super_admin) → /demo (dashboard contoh + data dummy)
+ * - selain itu → dashboard peran
  */
 export async function resolveAfterAuthPath(profile: Profile | null | undefined): Promise<string> {
-  if (!profile) return '/view';
+  if (!profile) return '/demo';
   if (profile.role === 'super_admin') return postLoginPath(profile.role);
 
   try {
@@ -16,11 +19,11 @@ export async function resolveAfterAuthPath(profile: Profile | null | undefined):
       return `/view?t=${encodeURIComponent(t)}&pending=1`;
     }
   } catch {
-    // tabel belum termigrasi: lanjut ke aturan bawah
+    // tabel belum termigrasi: lanjut
   }
 
-  if (profile.role === 'shohibul' && !profile.tenant_id) {
-    return '/view';
+  if (!profile.tenant_id) {
+    return '/demo';
   }
 
   return postLoginPath(profile.role);

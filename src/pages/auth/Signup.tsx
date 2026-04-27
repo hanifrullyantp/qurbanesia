@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { ShieldCheck, Mail, Lock, ArrowRight, User, Phone } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../auth/AuthProvider';
-import { postLoginPath } from '../../auth/postLoginPath';
+import { resolveAfterAuthPath } from '../../auth/resolveAfterAuth';
 import { isUserAlreadyRegisteredError } from '../../auth/signupErrors';
 
 const Signup = () => {
@@ -21,7 +21,14 @@ const Signup = () => {
   React.useEffect(() => {
     if (loading) return;
     if (!profile) return;
-    navigate(postLoginPath(profile.role), { replace: true });
+    let c = false;
+    (async () => {
+      const path = await resolveAfterAuthPath(profile);
+      if (!c) navigate(path, { replace: true });
+    })();
+    return () => {
+      c = true;
+    };
   }, [profile, loading, navigate]);
 
   const onSubmit = async (e: React.FormEvent) => {
